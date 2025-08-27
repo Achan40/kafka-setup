@@ -21,7 +21,7 @@ resource "aws_ecs_cluster" "kafka_setup_cluster" {
 # Create IAM role assumable via GitHub OIDC
 # Should allow github to conduct CI/CD to aws ECS and EBS
 resource "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+  url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
 }
 
@@ -39,6 +39,7 @@ resource "aws_iam_role" "ci_cd_role" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringLike = {
+            "token.actions.githubusercontent.com:aud" : "sts.amazonaws.com",
             "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:ref:refs/heads/${var.github_branch}"
           }
         }
