@@ -1,0 +1,27 @@
+name: CI/CD to AWS ECS
+
+on:
+  push:
+    branches:
+      - main   # runs pipeline when code is pushed to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Terraform Init & Apply
+        run: |
+          cd terraform
+          terraform init
+          terraform apply -auto-approve

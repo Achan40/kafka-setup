@@ -207,3 +207,17 @@ marimo/_lsp/
 __marimo__/
 
 *.env
+
+# terraform files
+*.tfstate
+*.tfstate.backup
+
+# Crash logs
+crash.log
+
+# Terraform working directory
+.terraform/
+
+# Sensitive variable files
+*.tfvars
+*.pem
