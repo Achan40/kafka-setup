@@ -12,10 +12,10 @@ jobs:
       id-token: write   # Required for OIDC
       contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4.3.1
         with:
           role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
           aws-region: us-east-2
