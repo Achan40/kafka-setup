@@ -13,18 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4.3.1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-2
           role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
-      
-      - name: Debug OIDC Token
-        run: |
-          echo "GitHub OIDC token sub claim:"
-          echo "${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | cut -d. -f2 | base64 -d | jq '.sub'
-          
       - name: Terraform Init & Apply
         run: |
           cd terraform
