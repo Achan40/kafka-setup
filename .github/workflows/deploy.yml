@@ -11,6 +11,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: kafka-setup
     steps:
       - uses: actions/checkout@v5
       - name: Configure AWS credentials via OIDC
