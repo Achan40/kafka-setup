@@ -1,28 +1,11 @@
 # kafka-setup
-Setting up a kafka system on AWS using ECS and github actions with continuous deployment.
+Setting up a kafka system on AWS.
 
-## Process
-1. terraform
-    * terraform setup with AWS https://spacelift.io/blog/terraform-tutorial
-    * create IAM user with administrator policy, create access key and secret access key
-    * commands: 
-        `terraform fmt` format terraform files to be more readable
-        `terraform plan` validate resource declaration
-        `terraform apply` provision resources
-        `terraform destroy` teardown resources
-
-1. AWS
-    * ECS cluster should be already created 
-    * ECS service should be created (with EC2 or fargate service)
-    * ECR repository should be created
-    * Create IAM user with ECR/ECS permissions. Create group, attach policies, add user to group. 
-        * Policies: 
-
-2. Github Actions
-    * Set up secrets
-    •	AWS_ACCESS_KEY_ID → IAM user’s access key with ECR/ECS permissions.
-	•	AWS_SECRET_ACCESS_KEY → IAM user’s secret key.
-	•	AWS_REGION → your AWS region (e.g., us-east-1).
-	•	ECR_REPOSITORY → your ECR repo name (e.g., hello-world-app).
-	•	ECS_CLUSTER → your ECS cluster name.
-	•	ECS_SERVICE → your ECS service name.
+## Infrastructure Setup
+Use terraform to provision AWS services.
+1. Follow the first few steps of the [terraform setup](https://spacelift.io/blog/terraform-tutorial) docs to install and allow terraform to access AWS
+2. From project root, `cd terraform/bootstrap`
+3. Create the OIDC provider and role `terraform apply` 
+4. Copy the role arn from the output and store the in github environment variable `CI_CD_ROLE_ARN`, this will allow the CI/CD pipeline to run on push to main
+5. Navigate to the core infrastructure directory `cd terraform/core`
+6. Run `terraform apply` to create the remaining infrastructure
