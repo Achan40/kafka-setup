@@ -1,3 +1,25 @@
+# set up ECR repo for storing images
+resource "aws_ecr_repository" "kafka_setup_repo" {
+  name                 = "kafka-setup-repo"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = local.project_tag
+  }
+}
+
+# set up ECS cluster for serving containers
+resource "aws_ecs_cluster" "kafka_setup_cluster" {
+  name = "kafka-setup-cluster"
+  tags = {
+    Name = local.project_tag
+  }
+}
+
 ####### OIDC Provider, role, and policy for github actions ##########
 # set up oidc provider
 resource "aws_iam_openid_connect_provider" "github_oidc" {
@@ -59,16 +81,3 @@ resource "aws_iam_role_policy_attachment" "ci_cd_attach" {
   policy_arn = aws_iam_policy.ci_cd_policy.arn
 }
 
-####### configure remote state so terraform state (of actual infa) can be tracked remotely ##########
-# S3 bucket for state
-resource "aws_s3_bucket" "tf_state" {
-  bucket        = "kafka-setup-terraform-state-bucket"
-  force_destroy = true
-}
-
-resource "aws_s3_bucket_versioning" "tf_state_versioning" {
-  bucket = aws_s3_bucket.tf_state.bucket
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
