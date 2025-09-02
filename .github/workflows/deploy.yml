@@ -42,7 +42,7 @@ jobs:
       # 5. Run Terragrunt plan (for visibility)
       - name: Terragrunt Plan
         run: |
-          cd infrastructure/live/dev
+          cd infra/prod/
           terragrunt plan -out=tfplan
 
       # 6. Apply on main (auto-approve since this is CI/CD)
