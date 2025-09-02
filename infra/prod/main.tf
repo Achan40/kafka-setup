@@ -68,6 +68,11 @@ resource "aws_iam_policy" "ci_cd_policy" {
           "ecs:*",
           "ecr:*",
           "s3:*",
+          "iam:CreateOpenIDConnectProvider:",
+          "iam:UpdateOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:GetOpenIDConnectProvider:",
+          "iam:ListOpenIDConnectProviders",
           "iam:PassRole"
         ]
         Resource = "*"
