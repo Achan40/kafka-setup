@@ -51,10 +51,3 @@ jobs:
         run: |
           cd infra/prod/
           terragrunt apply -auto-approve tfplan
-
-      # 7. Apply on main (auto-approve since this is CI/CD)
-      - name: Terragrunt Apply
-        if: github.ref == 'refs/heads/main'
-        run: |
-          cd infra/prod/
-          terragrunt apply -auto-approve tfplan
