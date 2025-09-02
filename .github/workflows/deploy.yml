@@ -50,4 +50,5 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: |
           cd infra/live/dev
-          terragrunt apply --all --terragrunt-non-interactive
+          terragrunt apply --all
+          y
