@@ -1,4 +1,4 @@
-name: CI/CD to AWS ECS
+name: Deploy Infrastructure
 
 on:
   push:
@@ -14,14 +14,47 @@ jobs:
     environment: kafka-setup
 
     steps:
-      - uses: actions/checkout@v5
+      # 1. Checkout Repo
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      # 2. configure AWS credentials
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-2
           role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
-      - name: Terraform Init & Apply
+      
+      # 3. Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+      
+       # 4. Install Terragrunt
+      - name: Install Terragrunt
         run: |
-          cd terraform
-          terraform init
-          terraform apply -auto-approve
+          TG_VERSION=0.86.2
+          wget https://github.com/gruntwork-io/terragrunt/releases/download/v${TG_VERSION}/terragrunt_linux_amd64
+          chmod +x terragrunt_linux_amd64
+          sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+
+      # 5. Run Terragrunt plan (for visibility)
+      - name: Terragrunt Plan
+        run: |
+          cd infrastructure/live/dev
+          terragrunt plan -out=tfplan
+
+      # 6. Apply on main (auto-approve since this is CI/CD)
+      - name: Terragrunt Apply
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd infra/prod/
+          terragrunt apply -auto-approve tfplan
+
+      # 7. Apply on main (auto-approve since this is CI/CD)
+      - name: Terragrunt Apply
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd infra/prod/
+          terragrunt apply -auto-approve tfplan
