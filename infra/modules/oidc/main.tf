@@ -1,22 +1,11 @@
-# set up ECR repo for storing images
-resource "aws_ecr_repository" "kafka_setup_repo" {
-  name                 = "kafka-setup-repo"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.10.0"
+    }
   }
-
-  tags = {
-    Name = local.project_tag
-  }
-}
-
-# set up ECS cluster for serving containers
-resource "aws_ecs_cluster" "kafka_setup_cluster" {
-  name = "kafka-setup-cluster"
-  tags = {
-    Name = local.project_tag
+  backend "s3" {
   }
 }
 
@@ -68,11 +57,6 @@ resource "aws_iam_policy" "ci_cd_policy" {
           "ecs:*",
           "ecr:*",
           "s3:*",
-          "iam:CreateOpenIDConnectProvider:",
-          "iam:UpdateOpenIDConnectProvider",
-          "iam:DeleteOpenIDConnectProvider",
-          "iam:GetOpenIDConnectProvider:",
-          "iam:ListOpenIDConnectProviders",
           "iam:PassRole"
         ]
         Resource = "*"
@@ -86,4 +70,3 @@ resource "aws_iam_role_policy_attachment" "ci_cd_attach" {
   role       = aws_iam_role.ci_cd_role.name
   policy_arn = aws_iam_policy.ci_cd_policy.arn
 }
-

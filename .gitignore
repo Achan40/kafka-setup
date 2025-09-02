@@ -217,6 +217,7 @@ crash.log
 
 # Terraform working directory
 .terraform/
+*.terragrunt-cache/
 
 # Sensitive variable files
 *.tfvars

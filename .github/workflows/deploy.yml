@@ -3,7 +3,7 @@ name: Deploy Infrastructure
 on:
   push:
     branches:
-      - main   # runs pipeline when code is pushed to main
+      - dev   # runs pipeline when code is pushed to main
 permissions:
   id-token: write   # Required for OIDC
   contents: read
@@ -42,12 +42,12 @@ jobs:
       # 5. Run Terragrunt plan (for visibility)
       - name: Terragrunt Plan
         run: |
-          cd infra/prod/
-          terragrunt plan -out=tfplan
+          cd infra/live/dev
+          terragrunt plan --all -out=tfplan
 
-      # 6. Apply on main (auto-approve since this is CI/CD)
+      # 6. Apply on dev (auto-approve since this is CI/CD)
       - name: Terragrunt Apply
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/dev'
         run: |
-          cd infra/prod/
-          terragrunt apply -auto-approve tfplan
+          cd infra/live/dev
+          terragrunt apply --all -auto-approve tfplan
