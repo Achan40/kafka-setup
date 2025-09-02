@@ -46,7 +46,7 @@ resource "aws_iam_role" "ci_cd_role" {
           }
           StringLike = {
             # Allow any branch in the repo
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:*"
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:ref:refs/heads/main"
           }
         }
       }
