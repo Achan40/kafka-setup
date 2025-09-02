@@ -67,6 +67,7 @@ resource "aws_iam_policy" "ci_cd_policy" {
         Action = [
           "ecs:*",
           "ecr:*",
+          "s3:*",
           "iam:PassRole"
         ]
         Resource = "*"
