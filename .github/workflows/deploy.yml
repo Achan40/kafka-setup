@@ -43,11 +43,11 @@ jobs:
       - name: Terragrunt Plan
         run: |
           cd infra/live/dev
-          terragrunt plan --all -out=tfplan
+          terragrunt plan --all
 
       # 6. Apply on dev (auto-approve since this is CI/CD)
       - name: Terragrunt Apply
         if: github.ref == 'refs/heads/dev'
         run: |
           cd infra/live/dev
-          terragrunt apply --all -auto-approve tfplan
+          terragrunt apply --all -auto-approve
