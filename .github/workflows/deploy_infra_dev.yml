@@ -49,6 +49,6 @@ jobs:
       - name: Terragrunt Apply
         if: github.ref == 'refs/heads/dev'
         run: |
-          export TERRAGRUNT_NON_INTERACTIVE=true
+          export TG_NON_INTERACTIVE=true
           cd infra/live/dev
           terragrunt apply --all
