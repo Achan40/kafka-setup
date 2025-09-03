@@ -3,7 +3,7 @@ include "common" {
 }
 
 terraform {
-  source = "../../../modules/oidc"
+  source = "../../modules/oidc"
 }
 
 inputs = {
