@@ -50,5 +50,6 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: |
           export TG_NON_INTERACTIVE=true
+          export TG_LOG=error
           cd infra/live/dev
           terragrunt apply --all
