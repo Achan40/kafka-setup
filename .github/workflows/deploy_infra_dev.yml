@@ -3,7 +3,7 @@ name: Deploy Infrastructure
 on:
   push:
     branches:
-      - dev   # runs pipeline when code is pushed to main
+      - dev   # runs pipeline when code is pushed to dev
 permissions:
   id-token: write   # Required for OIDC
   contents: read

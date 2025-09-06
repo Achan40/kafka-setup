@@ -11,5 +11,5 @@ Use terragrunt to provision AWS services.
 
 -- (optional) Create OIDC provider --
 1. From project root, navigate to bootstrap directory `cd infa/live/bootstrap`
-2. Run `terragrunt apply --all`
+2. Run `terragrunt apply`
 3. Copy the role arn from the output and store in github environment variable `CI_CD_ROLE_ARN`, this will set up the credentials for Github actions to run workflows.
