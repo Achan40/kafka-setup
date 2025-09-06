@@ -41,9 +41,9 @@ jobs:
             dir=$(dirname "$file")
             name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
 
-            echo "Building image for $file -> sending to existing repo: my-app-repo"
+            echo "Building image for $file -> sending to existing repo: ${{ secrets.ECR_REPO_NAME_DEV }}"
 
-            IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/my-app-repo:${name}-latest"
+            IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ secrets.ECR_REPO_NAME_DEV }}:${name}-latest"
 
             docker build -t "$IMAGE_URI" "$dir"
             docker push "$IMAGE_URI"
