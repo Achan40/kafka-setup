@@ -51,5 +51,6 @@ jobs:
         run: |
           export TG_NON_INTERACTIVE=true
           export TG_LOG=error
+          export TF_IN_AUTOMATION=1
           cd infra/live/dev
           terragrunt apply --all
