@@ -1,0 +1,50 @@
+name: Build and Push Dockerfiles to ECR
+
+on:
+  push:
+    branches:
+      - dev
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: kafka-setup
+
+    steps:
+      # 1. Checkout Repo
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      # 2. configure AWS credentials
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-2
+          role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
+
+      - name: Authenticate Docker to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Find Dockerfiles
+        id: find-dockerfiles
+        run: |
+          files=$(find . -type f -iname "Dockerfile")
+          echo "dockerfiles=$files" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Images
+        run: |
+          for file in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
+            dir=$(dirname "$file")
+            name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
+
+            echo "Building image for $file -> sending to existing repo: my-app-repo"
+
+            IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/my-app-repo:${name}-latest"
+
+            docker build -t "$IMAGE_URI" "$dir"
+            docker push "$IMAGE_URI"
+          done

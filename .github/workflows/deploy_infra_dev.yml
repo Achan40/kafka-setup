@@ -48,10 +48,6 @@ jobs:
       # 6. Apply on dev (auto-approve since this is CI/CD)
       - name: Terragrunt Apply
         if: github.ref == 'refs/heads/dev'
-        env:
-          TF_LOG: ERROR                # Suppress Terraform info/debug logs
-          TF_IN_AUTOMATION: 1          # Tell Terraform it's in automation mode
-          TG_LOG: error                 # Suppress Terragrunt info/debug logs
         run: |
           export TG_NON_INTERACTIVE=true
           cd infra/live/dev
