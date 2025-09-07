@@ -40,7 +40,6 @@ jobs:
             GIT_SHA=${GITHUB_SHA::7}
             REGISTRY="${{ steps.ecr-login.outputs.registry }}"
             REPO="${{ secrets.ECR_REPO_NAME_DEV }}"
-
             while IFS= read -r file; do
                 dir=$(dirname "$file")
                 name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
