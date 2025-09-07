@@ -20,7 +20,7 @@ jobs:
 
       # 2. configure AWS credentials
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: us-east-2
           role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
@@ -37,14 +37,22 @@ jobs:
 
       - name: Build and Push Images
         run: |
-          for file in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
+            GIT_SHA=${GITHUB_SHA::7}   # short commit SHA
+
+            for file in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
             dir=$(dirname "$file")
             name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
 
-            echo "Building image for $file -> sending to existing repo: ${{ secrets.ECR_REPO_NAME_DEV }}"
+            echo "Building image for $file -> sending to repo: ${{ secrets.ECR_REPO_NAME_DEV }}"
 
-            IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ secrets.ECR_REPO_NAME_DEV }}:${name}-latest"
+            BASE_URI="${{ steps.ecr-login.outputs.registry }}/${{ secrets.ECR_REPO_NAME_DEV }}"
+            IMAGE_LATEST="$BASE_URI:${name}-latest"
+            IMAGE_SHA="$BASE_URI:${name}-${GIT_SHA}"
 
-            docker build -t "$IMAGE_URI" "$dir"
-            docker push "$IMAGE_URI"
-          done
+            # Build once, tag twice
+            docker build -t "$IMAGE_LATEST" -t "$IMAGE_SHA" "$dir"
+
+            # Push both tags
+            docker push "$IMAGE_LATEST"
+            docker push "$IMAGE_SHA"
+            done
