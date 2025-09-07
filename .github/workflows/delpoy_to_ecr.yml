@@ -43,25 +43,27 @@ jobs:
             REPO="${{ secrets.ECR_REPO_NAME_DEV }}"
 
             while IFS= read -r file; do
-                # Remove leading ./ if exists
-                file="${file#./}"
+              # Normalize path
+              file="${file#./}"
+              dir=$(dirname "$file")
+              name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
 
-                dir=$(dirname "$file")
-                name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
+              echo "Building Dockerfile at $file -> sending to $REPO"
 
-                echo "Building Dockerfile at $file -> sending to $REPO"
+              IMAGE_SHA="$REGISTRY/$REPO:${name}-${GIT_SHA}"
+              IMAGE_LATEST="$REGISTRY/$REPO:${name}-latest"
 
-                IMAGE_SHA="$REGISTRY/$REPO:${name}-${GIT_SHA}"
-                IMAGE_LATEST="$REGISTRY/$REPO:${name}-latest"
+              # Build with a unique ARG to force Docker to create a new image manifest
+              docker build \
+                --build-arg SERVICE_NAME="$name" \
+                -t "$IMAGE_SHA" "$dir"
 
-                # Build once, tag twice
-                docker build -t "$IMAGE_SHA" "$dir"
-                docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+              # Tag as latest
+              docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
 
-                # Push both tags
-                docker push "$IMAGE_SHA"
-                docker push "$IMAGE_LATEST"
+              # Push both tags
+              docker push "$IMAGE_SHA"
+              docker push "$IMAGE_LATEST"
 
-                echo "Pushed $IMAGE_SHA and $IMAGE_LATEST successfully."
-
+              echo "Pushed $IMAGE_SHA and $IMAGE_LATEST successfully."
             done < dockerfiles.txt
