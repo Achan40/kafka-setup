@@ -38,23 +38,25 @@ jobs:
       - name: Build and Push Images
         run: |
             GIT_SHA=${GITHUB_SHA::7}
+            REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+            REPO="${{ secrets.ECR_REPO_NAME_DEV }}"
 
             while IFS= read -r file; do
-            dir=$(dirname "$file")
-            name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
+                dir=$(dirname "$file")
+                name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
 
-            echo "Building image for $file -> sending to repo: ${{ secrets.ECR_REPO_NAME_DEV }}"
+                echo "Building Dockerfile at $file -> sending to $REPO"
 
-            BASE_URI="${{ steps.ecr-login.outputs.registry }}/${{ secrets.ECR_REPO_NAME_DEV }}"
-            IMAGE_LATEST="$BASE_URI:${name}-latest"
-            IMAGE_SHA="$BASE_URI:${name}-${GIT_SHA}"
+                # Build image once and tag with SHA
+                IMAGE_SHA="$REGISTRY/$REPO:${name}-${GIT_SHA}"
+                docker build -t "$IMAGE_SHA" "$dir"
 
-            # Build once per Dockerfile (separate image object per dir)
-            docker build -t "$IMAGE_SHA" "$dir"
+                # Tag the same image as latest
+                IMAGE_LATEST="$REGISTRY/$REPO:${name}-latest"
+                docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
 
-            # Tag SHA build also as latest
-            docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+                # Push both tags
+                docker push "$IMAGE_SHA"
+                docker push "$IMAGE_LATEST"
 
-            docker push "$IMAGE_SHA"
-            docker push "$IMAGE_LATEST"
             done < dockerfiles.txt
