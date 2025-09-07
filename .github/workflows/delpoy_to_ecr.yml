@@ -32,14 +32,14 @@ jobs:
       - name: Find Dockerfiles
         id: find-dockerfiles
         run: |
-          files=$(find . -type f -iname "Dockerfile")
-          echo "dockerfiles=$files" >> $GITHUB_OUTPUT
+            find . -type f -iname "Dockerfile" > dockerfiles.txt
+            cat dockerfiles.txt
 
       - name: Build and Push Images
         run: |
             GIT_SHA=${GITHUB_SHA::7}   # short commit SHA
 
-            for file in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
+            while IFS= read -r file; do
             dir=$(dirname "$file")
             name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
 
@@ -49,10 +49,7 @@ jobs:
             IMAGE_LATEST="$BASE_URI:${name}-latest"
             IMAGE_SHA="$BASE_URI:${name}-${GIT_SHA}"
 
-            # Build once, tag twice
             docker build -t "$IMAGE_LATEST" -t "$IMAGE_SHA" "$dir"
-
-            # Push both tags
             docker push "$IMAGE_LATEST"
             docker push "$IMAGE_SHA"
-            done
+            done < dockerfiles.txt
