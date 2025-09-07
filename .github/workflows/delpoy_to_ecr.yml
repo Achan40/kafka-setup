@@ -37,7 +37,7 @@ jobs:
 
       - name: Build and Push Images
         run: |
-            GIT_SHA=${GITHUB_SHA::7}   # short commit SHA
+            GIT_SHA=${GITHUB_SHA::7}
 
             while IFS= read -r file; do
             dir=$(dirname "$file")
@@ -49,7 +49,12 @@ jobs:
             IMAGE_LATEST="$BASE_URI:${name}-latest"
             IMAGE_SHA="$BASE_URI:${name}-${GIT_SHA}"
 
-            docker build -t "$IMAGE_LATEST" -t "$IMAGE_SHA" "$dir"
-            docker push "$IMAGE_LATEST"
+            # Build once per Dockerfile (separate image object per dir)
+            docker build -t "$IMAGE_SHA" "$dir"
+
+            # Tag SHA build also as latest
+            docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+
             docker push "$IMAGE_SHA"
+            docker push "$IMAGE_LATEST"
             done < dockerfiles.txt
