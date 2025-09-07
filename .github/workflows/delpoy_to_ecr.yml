@@ -37,25 +37,31 @@ jobs:
 
       - name: Build and Push Images
         run: |
+            set -e
             GIT_SHA=${GITHUB_SHA::7}
             REGISTRY="${{ steps.ecr-login.outputs.registry }}"
             REPO="${{ secrets.ECR_REPO_NAME_DEV }}"
+
             while IFS= read -r file; do
+                # Remove leading ./ if exists
+                file="${file#./}"
+
                 dir=$(dirname "$file")
                 name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
 
                 echo "Building Dockerfile at $file -> sending to $REPO"
 
-                # Build image once and tag with SHA
                 IMAGE_SHA="$REGISTRY/$REPO:${name}-${GIT_SHA}"
-                docker build -t "$IMAGE_SHA" "$dir"
-
-                # Tag the same image as latest
                 IMAGE_LATEST="$REGISTRY/$REPO:${name}-latest"
+
+                # Build once, tag twice
+                docker build -t "$IMAGE_SHA" "$dir"
                 docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
 
                 # Push both tags
                 docker push "$IMAGE_SHA"
                 docker push "$IMAGE_LATEST"
+
+                echo "Pushed $IMAGE_SHA and $IMAGE_LATEST successfully."
 
             done < dockerfiles.txt
