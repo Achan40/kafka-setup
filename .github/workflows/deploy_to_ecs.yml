@@ -43,10 +43,16 @@ jobs:
             FAMILY=$(jq -r '.family' "$task_file")
             SERVICE_NAME=$FAMILY
 
-            echo "Checking if service $SERVICE_NAME exists on cluster $CLUSTER_NAME..."
-            if aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SERVICE_NAME" \
-                 --query 'failures[?reason==`MISSING`]' --output text | grep -q "MISSING"; then
-              echo "Service not found. Creating ECS service: $SERVICE_NAME"
+            echo "Checking if service $SERVICE_NAME exists in cluster $CLUSTER_NAME..."
+
+            SERVICE_STATUS=$(aws ecs describe-services \
+              --cluster "$CLUSTER_NAME" \
+              --services "$SERVICE_NAME" \
+              --query 'services[0].status' \
+              --output text 2>/dev/null || echo "MISSING")
+
+            if [ "$SERVICE_STATUS" = "MISSING" ] || [ "$SERVICE_STATUS" = "INACTIVE" ]; then
+              echo "Service $SERVICE_NAME not found or inactive. Creating service..."
 
               aws ecs create-service \
                 --cluster "$CLUSTER_NAME" \
@@ -56,7 +62,7 @@ jobs:
                 --launch-type EC2 \
                 --deployment-controller type=ECS
             else
-              echo "Updating ECS service: $SERVICE_NAME"
+              echo "Updating existing ECS service: $SERVICE_NAME (status=$SERVICE_STATUS)"
               aws ecs update-service \
                 --cluster "$CLUSTER_NAME" \
                 --service "$SERVICE_NAME" \
