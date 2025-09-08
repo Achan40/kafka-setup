@@ -25,7 +25,7 @@ jobs:
         
       - name: Register Task Definitions and Update Services
         run: |
-          for task_file in ecs-task-definitions/*.json; do
+          for task_file in ecs_task_definitions/*.json; do
             echo "Registering task definition: $task_file"
 
             # Register task definition
