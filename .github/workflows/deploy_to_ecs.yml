@@ -23,7 +23,7 @@ jobs:
           aws-region: us-east-2
           role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
         
-      - name: Register Task Definitions and Update Services
+      - name: Register Task Definitions and Create/Update Services
         env:
             CLUSTER_NAME: ${{ secrets.ECS_CLUSTER_NAME_DEV }}
         run: |
