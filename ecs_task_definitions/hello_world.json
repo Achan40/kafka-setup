@@ -1,0 +1,20 @@
+{
+  "family": "hello-world-task",
+  "networkMode": "bridge",
+  "containerDefinitions": [
+    {
+      "name": "hello-world-container",
+      "image": "084719917325.dkr.ecr.us-east-2.amazonaws.com/ecr-kafka-setup-dev:hello_world-latest",
+      "memory": 128,
+      "cpu": 128,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "hostPort": 5000
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": ["EC2"]
+}

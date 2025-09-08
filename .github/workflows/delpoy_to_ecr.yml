@@ -14,11 +14,9 @@ jobs:
     environment: kafka-setup
 
     steps:
-      # Checkout Repo
       - name: Checkout repo
         uses: actions/checkout@v5
 
-      # configure AWS credentials
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -29,7 +27,6 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      # identify dockerfiles in repo. Build and push to ECR repo.
       - name: Find Dockerfiles
         id: find-dockerfiles
         run: |
