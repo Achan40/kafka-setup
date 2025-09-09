@@ -1,10 +1,7 @@
 name: Deploy task definition to ECS
 
 on:
-  workflow_run:
-    workflows: ["Build and Push Dockerfiles to ECR"]
-    types:
-      - completed
+  workflow_dispatch: 
 permissions:
   id-token: write   # Required for OIDC
   contents: read

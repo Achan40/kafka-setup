@@ -1,10 +1,7 @@
 name: Build and Push Dockerfiles to ECR
 
 on:
-  workflow_run:
-    workflows: ["Deploy Infrastructure"]
-    types:
-      - completed
+  workflow_dispatch: 
 permissions:
   id-token: write   # Required for OIDC
   contents: read

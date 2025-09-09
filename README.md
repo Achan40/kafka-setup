@@ -13,3 +13,15 @@ Use terragrunt to provision AWS services.
 1. From project root, navigate to bootstrap directory `cd infa/live/bootstrap`
 2. Run `terragrunt apply`
 3. Copy the role arn from the output and store in github environment variable `CI_CD_ROLE_ARN`, this will set up the credentials for Github actions to run workflows.
+
+## EC2 access
+1. create ssh key locally
+``` 
+aws ec2 create-key-pair \
+--key-name ecs-key \
+--query 'KeyMaterial' \
+--output text > ecs-key.pem 
+```
+2. Set permissions for the key `chmod 400 ecs-key.pem`
+3. Use the key in terraform `key_name = "ecs-key"`
+4. Access EC2 instance `ssh -i ecs-key.pem ec2-user@<EC2_PUBLIC_IP>`

@@ -17,50 +17,67 @@ resource "aws_ecs_cluster" "kafka_setup_cluster" {
   }
 }
 
-# set up policy and attach to role so that ECS containers can talk to EC2
-resource "aws_iam_role" "ecs_instance_role" {
-  name = "ecsInstanceRole"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
+#### configure security groups and EC2 infrastructure ####
+# Fetch current public IP dynamically
+data "http" "my_ip" {
+  url = "https://checkip.amazonaws.com/"
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
-  role       = aws_iam_role.ecs_instance_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+# Use default VPC
+data "aws_vpc" "default" {
+  default = true
 }
 
-resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name = "ecsInstanceProfile"
-  role = aws_iam_role.ecs_instance_role.name
+# Clean up the result (it comes with a newline)
+locals {
+  my_ip = "${chomp(data.http.my_ip.response_body)}/32"
 }
 
-# launch an EC2 instance w ECS - optimized AMI
-data "aws_ssm_parameter" "ecs_ami" {
-  name = "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
+# Security group allowing SSH only from *your* IP
+resource "aws_security_group" "ecs_sg" {
+  name        = "ecs-ssh-sg"
+  description = "Allow SSH from my current public IP"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "SSH from my IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_ip]
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
-resource "aws_instance" "ecs_container_instance" {
-  ami           = data.aws_ssm_parameter.ecs_ami.value
-  instance_type = "t3.micro" # minimum for testing
+# Data source to fetch the latest ECS-optimized Amazon Linux 2 AMI
+data "aws_ami" "ecs" {
+  most_recent = true
+  owners      = ["amazon"]
 
-  iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
+  }
+}
 
-  user_data = <<-EOT
-              #!/bin/bash
-              echo ECS_CLUSTER=${var.ecs_cluster_name} >> /etc/ecs/ecs.config
-              systemctl enable --now ecs
-              
-              # Enable serial console login
-              systemctl enable --now serial-getty@ttyS0.service
-              EOT
+# ECS-optimized EC2 instance
+resource "aws_instance" "ecs_instance" {
+  ami           = data.aws_ami.ecs.id
+  instance_type = "t3.micro"        # minimal size
+
+  # Optional: SSH key
+  key_name = "ecs-key"  # replace with your key pair
+  vpc_security_group_ids      = [aws_security_group.ecs_sg.id]
+  associate_public_ip_address = true
 
   tags = {
-    Name = "ecs-container-instance"
+    Name = "ECSInstance"
   }
 }
