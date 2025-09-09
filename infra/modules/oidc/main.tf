@@ -87,7 +87,8 @@ resource "aws_iam_policy" "ci_cd_policy" {
           "iam:AddRoleToInstanceProfile",
           "iam:GetInstanceProfile",
           "iam:RemoveRoleFromInstanceProfile",
-          "iam:DeleteInstanceProfile"
+          "iam:DeleteInstanceProfile",
+          "iam:UpdateAssumeRolePolicy" 
         ]
         Resource = "*"
       },

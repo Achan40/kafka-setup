@@ -25,10 +25,7 @@ resource "aws_iam_role" "ecs_instance_role" {
     Statement = [{
       Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
-      Action    = ["sts:AssumeRole",
-                "ec2-instance-connect:SendSerialConsoleSSHPublicKey",
-          "ec2:GetSerialConsoleAccessStatus",
-          "ec2:DescribeInstances"]
+      Action    = "sts:AssumeRole"
     }]
   })
 }
