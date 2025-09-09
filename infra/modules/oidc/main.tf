@@ -56,10 +56,49 @@ resource "aws_iam_policy" "ci_cd_policy" {
         Action = [
           "ecs:*",
           "ecr:*",
-          "s3:*",
-          "iam:PassRole"
+          "s3:*"
         ]
         Resource = "*"
+      },
+
+      # EC2 provisioning (instances, networking, SGs, AMIs, etc.)
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ec2:*",
+          "elasticloadbalancing:*",
+          "autoscaling:*"
+        ]
+        Resource = "*"
+      },
+
+      # IAM role pass-through (needed when attaching IAM roles to EC2/ECS tasks)
+      {
+        Effect   = "Allow"
+        Action   = [
+          "iam:CreateRole",
+          "iam:AttachRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:PassRole",
+          "iam:GetRole",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:CreateInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:GetInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:DeleteInstanceProfile"
+        ]
+        Resource = "*"
+      },
+      # SSM
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:*:*:parameter/aws/service/ecs/optimized-ami/*"
       }
     ]
   })

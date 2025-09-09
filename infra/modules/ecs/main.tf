@@ -25,7 +25,10 @@ resource "aws_iam_role" "ecs_instance_role" {
     Statement = [{
       Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
+      Action    = ["sts:AssumeRole",
+                "ec2-instance-connect:SendSerialConsoleSSHPublicKey",
+          "ec2:GetSerialConsoleAccessStatus",
+          "ec2:DescribeInstances"]
     }]
   })
 }
@@ -55,6 +58,9 @@ resource "aws_instance" "ecs_container_instance" {
               #!/bin/bash
               echo ECS_CLUSTER=${var.ecs_cluster_name} >> /etc/ecs/ecs.config
               systemctl enable --now ecs
+              
+              # Enable serial console login
+              systemctl enable --now serial-getty@ttyS0.service
               EOT
 
   tags = {
