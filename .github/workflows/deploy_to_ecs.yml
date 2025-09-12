@@ -1,7 +1,9 @@
 name: Deploy task definition to ECS
 
 on:
-  workflow_dispatch: 
+  push:
+    branches:
+      - dev
 permissions:
   id-token: write   # Required for OIDC
   contents: read
