@@ -20,7 +20,7 @@ terraform {
 # 7. Create ECS capacity providers and link to auto scaling group. ECS will now determine how to scale your resources.
 
 
-# create ECS cluster for serving containers
+# 1. Create an ECS cluster
 resource "aws_ecs_cluster" "kafka_setup_cluster" {
   name = var.ecs_cluster_name
   tags = {
@@ -28,7 +28,7 @@ resource "aws_ecs_cluster" "kafka_setup_cluster" {
   }
 }
 
-# EC2 cluster needs infrastructure to run on, either EC2 or fargate
+# 2-3.
 #### configure security groups and EC2 infrastructure ####
 # Fetch current public IP dynamically
 data "http" "my_ip" {
@@ -56,8 +56,16 @@ resource "aws_security_group" "ecs_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    self        = true  # allows traffic from other instances in the same SG
     cidr_blocks = [local.my_ip]
+  }
+
+  # Allow all traffic between instances in this SG
+  ingress {
+    description      = "Allow all traffic between ECS instances"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    self             = true
   }
 
   egress {
@@ -69,17 +77,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# Data source to fetch the latest ECS-optimized Amazon Linux 2 AMI
-data "aws_ami" "ecs" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
-  }
-}
-
+# 4. Create IAM role/policy/instance_profile to allow EC2 instances to communicate with ECS resources
 # IAM Role, attach policy, instance profiles for EC2 instances
 resource "aws_iam_role" "ecs_instance_role" {
   name = "ecsInstanceRole"
@@ -106,6 +104,19 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
   role = aws_iam_role.ecs_instance_role.name
 }
 
+# 5. Create launch template.
+# Data source to fetch the latest ECS-optimized Amazon Linux 2 AMI
+data "aws_ami" "ecs" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
+  }
+}
+
+
 # Launch Template for ECS Instances
 resource "aws_launch_template" "ecs_lt" {
   name_prefix   = "ecs-lt-"
@@ -124,7 +135,7 @@ resource "aws_launch_template" "ecs_lt" {
   )
 }
 
-## configure subnets
+# 6. Configure subnets and create autoscaling group.
 # Get all subnets in the default VPC
 data "aws_subnets" "default" {
   filter {
@@ -156,6 +167,7 @@ resource "aws_autoscaling_group" "ecs_asg" {
   }
 }
 
+# 7. Create ECS capacity providers and link to auto scaling group. 
 # Capacity Provider
 resource "aws_ecs_capacity_provider" "ecs_cp" {
   name = "kafka-setup-capacity-provider"
