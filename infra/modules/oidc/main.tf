@@ -1,22 +1,11 @@
-# set up ECR repo for storing images
-resource "aws_ecr_repository" "kafka_setup_repo" {
-  name                 = "kafka-setup-repo"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.10.0"
+    }
   }
-
-  tags = {
-    Name = local.project_tag
-  }
-}
-
-# set up ECS cluster for serving containers
-resource "aws_ecs_cluster" "kafka_setup_cluster" {
-  name = "kafka-setup-cluster"
-  tags = {
-    Name = local.project_tag
+  backend "s3" {
   }
 }
 
@@ -67,15 +56,50 @@ resource "aws_iam_policy" "ci_cd_policy" {
         Action = [
           "ecs:*",
           "ecr:*",
-          "s3:*",
-          "iam:CreateOpenIDConnectProvider:",
-          "iam:UpdateOpenIDConnectProvider",
-          "iam:DeleteOpenIDConnectProvider",
-          "iam:GetOpenIDConnectProvider:",
-          "iam:ListOpenIDConnectProviders",
-          "iam:PassRole"
+          "s3:*"
         ]
         Resource = "*"
+      },
+
+      # EC2 provisioning (instances, networking, SGs, AMIs, etc.)
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ec2:*",
+          "elasticloadbalancing:*",
+          "autoscaling:*"
+        ]
+        Resource = "*"
+      },
+
+      # IAM role pass-through (needed when attaching IAM roles to EC2/ECS tasks)
+      {
+        Effect   = "Allow"
+        Action   = [
+          "iam:CreateRole",
+          "iam:AttachRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:PassRole",
+          "iam:GetRole",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:CreateInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:GetInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:UpdateAssumeRolePolicy" 
+        ]
+        Resource = "*"
+      },
+      # SSM
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:*:*:parameter/aws/service/ecs/optimized-ami/*"
       }
     ]
   })
@@ -86,4 +110,3 @@ resource "aws_iam_role_policy_attachment" "ci_cd_attach" {
   role       = aws_iam_role.ci_cd_role.name
   policy_arn = aws_iam_policy.ci_cd_policy.arn
 }
-

@@ -11,4 +11,4 @@ COPY . .
 RUN pip install .
 
 # Run hello-world once, then keep container alive
-CMD hello-world && tail -f /dev/null
+CMD ["sh", "-c", "hello-world && tail -f /dev/null"]

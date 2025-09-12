@@ -1,0 +1,65 @@
+name: Build and Push Dockerfiles to ECR
+
+on:
+  workflow_dispatch: 
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: kafka-setup
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-region: us-east-2
+          role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
+
+      - name: Authenticate Docker to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Find Dockerfiles
+        id: find-dockerfiles
+        run: |
+            find . -type f -iname "Dockerfile" > dockerfiles.txt
+            cat dockerfiles.txt
+
+      - name: Build and Push Images
+        run: |
+            set -e
+            GIT_SHA=${GITHUB_SHA::7}
+            REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+            REPO="${{ secrets.ECR_REPO_NAME_DEV }}"
+
+            while IFS= read -r file; do
+              # Normalize path
+              file="${file#./}"
+              dir=$(dirname "$file")
+              name=$(basename "$dir" | tr '[:upper:]' '[:lower:]')
+
+              echo "Building Dockerfile at $file -> sending to $REPO"
+
+              IMAGE_SHA="$REGISTRY/$REPO:${name}-${GIT_SHA}"
+              IMAGE_LATEST="$REGISTRY/$REPO:${name}-latest"
+
+              # Build with a unique ARG to force Docker to create a new image manifest
+              docker build \
+                --build-arg SERVICE_NAME="$name" \
+                -t "$IMAGE_SHA" "$dir"
+
+              # Tag as latest
+              docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+
+              # Push both tags
+              docker push "$IMAGE_SHA"
+              docker push "$IMAGE_LATEST"
+
+              echo "Pushed $IMAGE_SHA and $IMAGE_LATEST successfully."
+            done < dockerfiles.txt

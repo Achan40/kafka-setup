@@ -1,9 +1,7 @@
 name: Deploy Infrastructure
 
 on:
-  push:
-    branches:
-      - main   # runs pipeline when code is pushed to main
+  workflow_dispatch: 
 permissions:
   id-token: write   # Required for OIDC
   contents: read
@@ -14,24 +12,20 @@ jobs:
     environment: kafka-setup
 
     steps:
-      # 1. Checkout Repo
       - name: Checkout repo
         uses: actions/checkout@v5
 
-      # 2. configure AWS credentials
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: us-east-2
           role-to-assume: ${{ secrets.CI_CD_ROLE_ARN }}
       
-      # 3. Install Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.13.1
       
-       # 4. Install Terragrunt
       - name: Install Terragrunt
         run: |
           TG_VERSION=0.86.2
@@ -39,15 +33,15 @@ jobs:
           chmod +x terragrunt_linux_amd64
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
-      # 5. Run Terragrunt plan (for visibility)
       - name: Terragrunt Plan
         run: |
-          cd infra/prod/
-          terragrunt plan -out=tfplan
+          cd infra/live/dev
+          terragrunt plan --all
 
-      # 6. Apply on main (auto-approve since this is CI/CD)
+      # Apply on dev (auto-approve since this is CI/CD)
       - name: Terragrunt Apply
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/dev'
         run: |
-          cd infra/prod/
-          terragrunt apply -auto-approve tfplan
+          export TG_NON_INTERACTIVE=true
+          cd infra/live/dev
+          terragrunt apply --all
