@@ -45,18 +45,34 @@ locals {
   my_ip = "${chomp(data.http.my_ip.response_body)}/32"
 }
 
+# Look up the managed prefix list for EC2 Instance Connect in this region
+data "aws_ec2_managed_prefix_list" "ec2_instance_connect" {
+  name = "com.amazonaws.${var.aws_region}.ec2-instance-connect"
+}
+
+
 # Security group allowing SSH into EC2 instances only from *your* IP
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-ssh-sg"
   description = "Allow SSH from my current public IP"
   vpc_id      = data.aws_vpc.default.id
 
+  # allow from local ip (with generated ssh key)
   ingress {
     description = "SSH from my IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [local.my_ip]
+  }
+
+  # Allow SSH from the EC2 Instance Connect service (console/web terminal)
+  ingress {
+    description      = "EC2 Instance Connect service"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    prefix_list_ids  = [data.aws_ec2_managed_prefix_list.ec2_instance_connect.id]
   }
 
   # Allow all traffic between instances in this SG
@@ -99,6 +115,12 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
 
+# Add EC2 Instance Connect permissions
+resource "aws_iam_role_policy_attachment" "ecs_instance_role_ec2_instance_connect" {
+  role       = aws_iam_role.ecs_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/EC2InstanceConnect"
+}
+
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
   name = "ecsInstanceProfile"
   role = aws_iam_role.ecs_instance_role.name
@@ -106,22 +128,17 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
 
 # 5. Create launch template.
 # Data source to fetch the latest ECS-optimized Amazon Linux 2 AMI
-data "aws_ami" "ecs" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
-  }
+# Fetch the latest Amazon Linux 2023 ECS-Optimized AMI (general-purpose, non-GPU)
+data "aws_ssm_parameter" "ecs_al2023_ami" {
+  name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id"
 }
-
 
 # Launch Template for ECS Instances
 resource "aws_launch_template" "ecs_lt" {
   name_prefix   = "ecs-lt-"
-  image_id      = data.aws_ami.ecs.id # ECS-optimized AMI
+  image_id      = data.aws_ssm_parameter.ecs_al2023_ami.value # ECS-Optimized AL2023 AMI
   instance_type = "t3.micro"
+  key_name      = "ecs-key"  # replace with your key pair
   vpc_security_group_ids = [aws_security_group.ecs_sg.id]
 
   iam_instance_profile {
@@ -131,6 +148,12 @@ resource "aws_launch_template" "ecs_lt" {
   user_data = base64encode(<<-EOT
               #!/bin/bash
               echo ECS_CLUSTER=${var.ecs_cluster_name} >> /etc/ecs/ecs.config
+
+              # Update packages
+              sudo dnf update -y
+
+              # Install EC2 Instance Connect
+              sudo dnf install -y ec2-instance-connect
               EOT
   )
 }
@@ -147,9 +170,9 @@ data "aws_subnets" "default" {
 # Auto Scaling Group
 resource "aws_autoscaling_group" "ecs_asg" {
   name                      = "ecs-asg"
-  max_size                  = 3
-  min_size                  = 2
-  desired_capacity          = 2
+  max_size                  = var.ec2_instance_max
+  min_size                  = var.ec2_instance_min
+  desired_capacity          = var.ec2_instance_min
   vpc_zone_identifier       = data.aws_subnets.default.ids # replace with your subnet(s)
   health_check_type         = "EC2"
 

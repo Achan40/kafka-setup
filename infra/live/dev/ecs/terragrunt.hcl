@@ -9,4 +9,7 @@ terraform {
 inputs = {
   ecs_cluster_name = "ecs-kafka-setup-dev"
   project_tag      = "kafka-setup-dev"
+  aws_region = "us-east-2"
+  ec2_instance_min = 2
+  ec2_instance_max = 3
 }
