@@ -22,3 +22,8 @@ variable "ec2_instance_max" {
   type = number
   description = "Num of instances maximum"
 }
+
+variable "ec2_instance_type" {
+  type = string
+  description = "type of EC2 instance"
+}

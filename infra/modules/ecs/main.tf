@@ -81,7 +81,7 @@ resource "aws_security_group" "ecs_sg" {
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
-    self             = true
+    cidr_blocks = [data.aws_vpc.default.cidr_block] # open to all in VPC
   }
 
   egress {
@@ -137,7 +137,7 @@ data "aws_ssm_parameter" "ecs_al2023_ami" {
 resource "aws_launch_template" "ecs_lt" {
   name_prefix   = "ecs-lt-"
   image_id      = data.aws_ssm_parameter.ecs_al2023_ami.value # ECS-Optimized AL2023 AMI
-  instance_type = "t3.micro"
+  instance_type = var.ec2_instance_type
   key_name      = "ecs-key"  # replace with your key pair
   vpc_security_group_ids = [aws_security_group.ecs_sg.id]
 
