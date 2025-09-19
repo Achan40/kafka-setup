@@ -75,6 +75,28 @@ resource "aws_security_group" "ecs_sg" {
     prefix_list_ids  = [data.aws_ec2_managed_prefix_list.ec2_instance_connect.id]
   }
 
+  # open port 9093 to self
+  ingress {
+    from_port   = 9093
+    to_port     = 9093
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+  ingress {
+    from_port   = 9092
+    to_port     = 9092
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block] 
+  }
+    
+  ingress {
+    from_port   = 29092
+    to_port     = 29092
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block] 
+  }
+
   # Allow all traffic between instances in this SG
   ingress {
     description      = "Allow all traffic between ECS instances"
@@ -154,6 +176,13 @@ resource "aws_launch_template" "ecs_lt" {
 
               # Install EC2 Instance Connect
               sudo dnf install -y ec2-instance-connect
+
+              # Install nc
+              sudo yum install nc -y
+
+              # temporarily create host path
+              sudo mkdir -p /mnt/kafka-data
+              sudo chown -R ec2-user:ec2-user /mnt/kafka-data
               EOT
   )
 }

@@ -21,4 +21,4 @@ Infrastructure is set up to have multiple "environments" on a single AWS account
     * `/opt/kafka/bin/kafka-console-producer.sh --bootstrap-server broker1.kafka.local:9092 --topic test-topic`
     * `/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker1.kafka.local:9092 --list`
     * `/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server broker1.kafka.local:9092 --topic test-topic --from-beginning`
-    ./kafka-topics.sh --bootstrap-server broker1.kafka.local:29092 --describe --topic test-topic
+    * `/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server broker1.kafka.local:9092 --describe --all-groups`
