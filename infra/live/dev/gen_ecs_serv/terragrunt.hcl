@@ -3,7 +3,7 @@ include "common" {
 }
 
 terraform {
-  source = "../../../modules/task_serv_1"
+  source = "../../../modules/gen_ecs_serv"
 }
 
 dependency "ecs" {

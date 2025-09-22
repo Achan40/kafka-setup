@@ -10,6 +10,7 @@ terraform {
 }
 
 # ECS Task Definition
+# Used to run generic standalone containers (for example: a python script that prints hello world)
 resource "aws_ecs_task_definition" "task" {
   family                   = var.family
   network_mode             = "bridge"

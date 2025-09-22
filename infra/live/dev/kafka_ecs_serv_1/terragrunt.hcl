@@ -3,7 +3,7 @@ include "common" {
 }
 
 terraform {
-  source = "../../../modules/task_kafka"
+  source = "../../../modules/kafka_ecs_serv"
 }
 
 dependency "ecs" {
