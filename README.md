@@ -7,14 +7,15 @@ Use terragrunt to provision AWS services.
 2. Install [terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/quick-start)
 3. From project root, navigate to dev `cd infa/live/dev`
 4. Run `terragrunt apply --all --backend-bootstrap`
-5. Subsequent runs will only need `terragrunt apply --all`, --backend-bootstrap is required one time to create the s3 bucket to store terraform state remotely.
+5. Subsequent runs will only need `terragrunt apply --all`, --backend-bootstrap is required one time to create the s3 bucket to store terraform state remotely. 
+Note: when starting from scratch just deploy main services like ECR and ECS. ECS services will require a container image stored on ECR to boot correctly.
 
 -- (optional) Create OIDC provider --
 1. From project root, navigate to bootstrap directory `cd infa/live/bootstrap`
 2. Run `terragrunt apply`
 3. Copy the role arn from the output and store in github environment variable `CI_CD_ROLE_ARN`, this will set up the credentials for Github actions to run workflows.
 
-## EC2 access
+-- (optional) EC2 ssh access --
 1. create ssh key locally
 ``` 
 aws ec2 create-key-pair \

@@ -9,21 +9,17 @@ terraform {
   }
 }
 
+# configure cloudwatch logs
 resource "aws_cloudwatch_log_group" "kafka" {
-  name              = "/ecs/kafka"
-  retention_in_days = 7
+  name              = "/ecs/${var.container_name}"
+  retention_in_days = 3
 }
 
-resource "aws_service_discovery_private_dns_namespace" "kafka_ns" {
-  name        = "kafka.local"
-  description = "Private namespace for Kafka ECS brokers"
-  vpc         = var.ecs_cluster_vpc_id
-}
-
-resource "aws_service_discovery_service" "broker1" {
-  name = "broker1"
+# service discovery name. Needs a private dns namespace (created in ecs module)
+resource "aws_service_discovery_service" "broker" {
+  name = var.container_name
   dns_config {
-    namespace_id = aws_service_discovery_private_dns_namespace.kafka_ns.id
+    namespace_id = var.ecs_private_dns_ns
     dns_records { 
       type = "A"
       ttl = 10 
@@ -62,17 +58,18 @@ resource "aws_ecs_task_definition" "task" {
       ]
 
       environment = [
-        { name = "KAFKA_NODE_ID", value = "1" },
-        { name = "KAFKA_PROCESS_ROLES", value = "broker,controller" },
-        { name = "KAFKA_CONTROLLER_QUORUM_VOTERS", value = "1@broker1.kafka.local:9093" },
-        { name = "KAFKA_LISTENERS", value = "INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092"},
-        { name = "KAFKA_ADVERTISED_LISTENERS", value = "INTERNAL://broker1.kafka.local:9092,EXTERNAL://broker1.kafka.local:29092" },
-        { name = "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", value = "INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT" },
-        { name = "KAFKA_INTER_BROKER_LISTENER_NAME", value = "INTERNAL" },
-        { name = "KAFKA_CONTROLLER_LISTENER_NAMES", value = "CONTROLLER" },
         { name = "KAFKA_AUTO_CREATE_TOPICS_ENABLE", value = "true" },
         { name = "KAFKA_LOG_DIRS", value = "/var/lib/kafka/data" },
-        { name = "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", value = "1" } # set to 1 for single node
+
+        { name = "KAFKA_NODE_ID", value = var.kafka_node_id },
+        { name = "KAFKA_PROCESS_ROLES", value = var.kafka_process_roles },
+        { name = "KAFKA_CONTROLLER_QUORUM_VOTERS", value = var.kafka_controller_quorum_voters },
+        { name = "KAFKA_LISTENERS", value = var.kafka_listeners },
+        { name = "KAFKA_ADVERTISED_LISTENERS", value = var.kafka_advertised_listeners },
+        { name = "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", value = var.kafka_listener_security_protocol_map },
+        { name = "KAFKA_INTER_BROKER_LISTENER_NAME", value = var.kafka_inter_broker_listener_name },
+        { name = "KAFKA_CONTROLLER_LISTENER_NAMES", value = var.kafka_controller_listener_names },
+        { name = "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", value = var.kafka_offsets_topic_replication_factor } 
       ]
 
       mountPoints = [
@@ -101,7 +98,7 @@ resource "aws_ecs_service" "service" {
   cluster         = var.cluster_arn
   task_definition = aws_ecs_task_definition.task.arn
   desired_count   = var.desired_count
-  launch_type     = "EC2"
+  #launch_type     = "EC2"
 
   network_configuration {
     subnets = var.ecs_cluster_subnet_ids
@@ -109,7 +106,12 @@ resource "aws_ecs_service" "service" {
     assign_public_ip = false # or true if you want external access
   }
 
+  capacity_provider_strategy {
+    capacity_provider = var.ecs_capacity_provider_name
+    weight            = 1
+  }
+
   service_registries {
-    registry_arn = aws_service_discovery_service.broker1.arn
+    registry_arn = aws_service_discovery_service.broker.arn
   }
 }

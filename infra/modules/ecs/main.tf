@@ -18,7 +18,7 @@ terraform {
 # AWS knows how to create your instances
 # 6. Configure subnets and create autoscaling group. The autoscaling group will determine how/when to launch new EC2 instances
 # 7. Create ECS capacity providers and link to auto scaling group. ECS will now determine how to scale your resources.
-
+# 8. Create a service discovery private dns namespace. Use so services can create a resolvable dns within the VPC
 
 # 1. Create an ECS cluster
 resource "aws_ecs_cluster" "kafka_setup_cluster" {
@@ -230,7 +230,7 @@ resource "aws_ecs_capacity_provider" "ecs_cp" {
 
     managed_scaling {
       status                    = "ENABLED"
-      target_capacity           = 100
+      target_capacity           = 80
       minimum_scaling_step_size = 1
       maximum_scaling_step_size = 2
     }
@@ -247,4 +247,12 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_cluster_cp" {
     weight            = 1
     base              = 1
   }
+}
+
+# 8. Create a service discovery private dns namespace
+# Use so services can create a resolvable dns on within the VPC
+resource "aws_service_discovery_private_dns_namespace" "ecs_private_dns_ns" {
+  name        = "ecs.local"
+  description = "Private namespace for ECS cluster"
+  vpc         = data.aws_vpc.default.id
 }
