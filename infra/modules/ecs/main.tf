@@ -163,6 +163,15 @@ resource "aws_launch_template" "ecs_lt" {
   key_name      = "ecs-key"  # replace with your key pair
   vpc_security_group_ids = [aws_security_group.ecs_sg.id]
 
+  # extra EBS volume
+  block_device_mappings {
+    device_name = "/dev/sdf"
+    ebs {
+      volume_size = 20
+      volume_type = "gp3"
+    }
+  }
+
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance_profile.name
   }
@@ -176,6 +185,19 @@ resource "aws_launch_template" "ecs_lt" {
 
               # Install EC2 Instance Connect
               sudo dnf install -y ec2-instance-connect
+
+              # mount extra ebs volume to the directory where docker creates volumes
+              sudo mkfs -t xfs /dev/sdf
+              sudo mount /dev/sdf /var/lib/docker/volumes
+
+              # tell EC2 how to mount device at boot. Safe across restarts and renames.
+              UUID=$(blkid -s UUID -o value /dev/sdf)
+
+              # Update /etc/fstab if not already present
+              if ! grep -q "$UUID" /etc/fstab; then
+                  echo "UUID=$UUID /var/lib/docker/volumes xfs defaults,nofail 0 2" | sudo tee -a /etc/fstab
+              fi
+              sudo systemctl restart docker
               EOT
   )
 }
