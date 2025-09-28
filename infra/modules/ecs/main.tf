@@ -176,13 +176,6 @@ resource "aws_launch_template" "ecs_lt" {
 
               # Install EC2 Instance Connect
               sudo dnf install -y ec2-instance-connect
-
-              # Install nc
-              sudo yum install nc -y
-
-              # temporarily create host path
-              sudo mkdir -p /mnt/kafka-data
-              sudo chown -R ec2-user:ec2-user /mnt/kafka-data
               EOT
   )
 }

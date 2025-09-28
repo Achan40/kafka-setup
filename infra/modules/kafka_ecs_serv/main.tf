@@ -41,8 +41,14 @@ resource "aws_ecs_task_definition" "task" {
 
   # Define a volume
   volume {
-    name = "kafka-data"
-    host_path = "/mnt/kafka-data" # path on the EC2 instance
+    name = "${var.container_name}"
+    
+    docker_volume_configuration {
+      scope = "shared"
+      autoprovision = true
+      driver = "local"
+    }
+
   }
 
   container_definitions = jsonencode([
@@ -72,10 +78,11 @@ resource "aws_ecs_task_definition" "task" {
         { name = "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", value = var.kafka_offsets_topic_replication_factor } 
       ]
 
+      # connect volume on EC2 to container internal volume. Persist data on EC2 instance even if container is destroyed
       mountPoints = [
         {
-          sourceVolume  = "kafka-data"
-          containerPath = "/var/lib/kafka/data" # Kafka log.dirs
+          sourceVolume  = "${var.container_name}"
+          containerPath = "/var/lib/kafka/data" 
           readOnly      = false
         }
       ]

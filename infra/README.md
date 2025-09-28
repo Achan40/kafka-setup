@@ -1,11 +1,19 @@
-# Notes
+# Infrastructure Design
+Terraform/terragrunt is used to provision AWS resources. Services used include but are not limited to: ECS, ECR, EC2, S3, RDS
 
-Infrastructure is set up to have multiple "environments" on a single AWS account. You generally want separate AWS accounts with their own environments in reality, however, I'm working off AWS free tier and may have to restart after credits run out. This was the simplest approach to separate environments and following standard SDLC procedures.
+The main purpose is to set up a kafka cluster
+
+# Modules
+
+# Setup
+Infrastructure is set up to have multiple "environments" on a single AWS account. You generally want separate AWS accounts for each environments in production, however, I'm working off AWS free tier and may have to restart after credits run out. This was the simplest approach to separate environments and following standard SDLC procedures.
 
 * IMPORTANT: The remote backend s3 bucket that is created on the first `terragrunt apply` is not tracked in the terragrunt state. Will have to manually teardown if wiping infrastructure completely.
-* IMPORTANT: OIDC Provider and associated role/policies needed for github actions (CI/CD) requires one time provisioning. The directory `infra/live/bootstrap` contains the setup.
+* IMPORTANT: OIDC Provider and associated role/policies needed for github actions CI/CD requires one time provisioning. The directory `infra/live/bootstrap` contains the setup.
 
-### Quick Notes
+
+
+# Quick Notes
 * Terragrunt commands:
     * `terragrunt hcl fmt` format terragrunt files to be more readable
     * `terragrunt plan --all` validate resource declaration
@@ -14,7 +22,7 @@ Infrastructure is set up to have multiple "environments" on a single AWS account
 
 * Docker commands:
     * `docker ps` list running containers
-    * `docker exec -it <container_id> /bin/bash` enter (kafka) container
+    * `docker exec -it <container_id> /bin/bash` enter container
 
 * Kafka commands:
     * `/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server broker1.kafka.local:9092` 
