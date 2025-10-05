@@ -31,9 +31,9 @@ resource "aws_ecs_cluster" "kafka_setup_cluster" {
 # 2-3.
 #### configure security groups and EC2 infrastructure ####
 # Fetch current public IP dynamically
-data "http" "my_ip" {
-  url = "https://checkip.amazonaws.com/"
-}
+# data "http" "my_ip" {
+#   url = "https://checkip.amazonaws.com/"
+# }
 
 # Use default VPC
 data "aws_vpc" "default" {
@@ -41,9 +41,9 @@ data "aws_vpc" "default" {
 }
 
 # Clean up the result 
-locals {
-  my_ip = "${chomp(data.http.my_ip.response_body)}/32"
-}
+# locals {
+#   my_ip = "${chomp(data.http.my_ip.response_body)}/32"
+# }
 
 # Look up the managed prefix list for EC2 Instance Connect in this region
 data "aws_ec2_managed_prefix_list" "ec2_instance_connect" {
@@ -51,20 +51,20 @@ data "aws_ec2_managed_prefix_list" "ec2_instance_connect" {
 }
 
 
-# Security group allowing SSH into EC2 instances only from *your* IP
+# Security group for traffic and network access
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-ssh-sg"
-  description = "Allow SSH from my current public IP"
+  description = "Allow SSH"
   vpc_id      = data.aws_vpc.default.id
 
   # allow from local ip (with generated ssh key)
-  ingress {
-    description = "SSH from my IP"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [local.my_ip]
-  }
+  # ingress {
+  #   description = "SSH from my IP"
+  #   from_port   = 22
+  #   to_port     = 22
+  #   protocol    = "tcp"
+  #   cidr_blocks = [local.my_ip]
+  # }
 
   # Allow SSH from the EC2 Instance Connect service (console/web terminal)
   ingress {
@@ -73,28 +73,6 @@ resource "aws_security_group" "ecs_sg" {
     to_port          = 22
     protocol         = "tcp"
     prefix_list_ids  = [data.aws_ec2_managed_prefix_list.ec2_instance_connect.id]
-  }
-
-  # open port 9093 to self
-  ingress {
-    from_port   = 9093
-    to_port     = 9093
-    protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block]
-  }
-
-  ingress {
-    from_port   = 9092
-    to_port     = 9092
-    protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block] 
-  }
-    
-  ingress {
-    from_port   = 29092
-    to_port     = 29092
-    protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block] 
   }
 
   # Allow all traffic between instances in this SG
