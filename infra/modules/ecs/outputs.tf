@@ -5,7 +5,7 @@ output "ecs_cluster_arn" {
 
 output "ecs_cluster_subnet_ids" {
   description = "Subnet ids for ECS cluster"
-  value =  data.aws_subnets.default.ids
+  value =  var.private_subnet_ids
 }
 
 output "ecs_cluster_sg" {
@@ -15,7 +15,7 @@ output "ecs_cluster_sg" {
 
 output "ecs_cluster_vpc_id" {
   description = "VPC id used for ECS cluster"
-  value = data.aws_vpc.default.id
+  value = data.aws_vpc.custom_vpc.id
 }
 
 output "ecs_private_dns_ns" {

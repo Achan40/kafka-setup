@@ -9,18 +9,7 @@ terraform {
   }
 }
 
-# ECS setup
-# 1. Create an ECS cluster
-# 2. ECS cluster needs infrastructure to run on (EC2,fargate). In our case we use EC2.
-# 3. Create security group, allows for traffic in/out EC2 instances
-# 4. Create IAM role/policy/instance_profile to allow EC2 instances to communicate with ECS resources
-# 5. Create launch template. Basically a guide for how to provision EC2 resources. Attach IAM role, sec group to this template so that
-# AWS knows how to create your instances
-# 6. Configure subnets and create autoscaling group. The autoscaling group will determine how/when to launch new EC2 instances
-# 7. Create ECS capacity providers and link to auto scaling group. ECS will now determine how to scale your resources.
-# 8. Create a service discovery private dns namespace. Use so services can create a resolvable dns within the VPC
-
-# 1. Create an ECS cluster
+# Create an ECS cluster
 resource "aws_ecs_cluster" "kafka_setup_cluster" {
   name = var.ecs_cluster_name
   tags = {
@@ -28,60 +17,25 @@ resource "aws_ecs_cluster" "kafka_setup_cluster" {
   }
 }
 
-# 2-3.
-#### configure security groups and EC2 infrastructure ####
-# Fetch current public IP dynamically
-# data "http" "my_ip" {
-#   url = "https://checkip.amazonaws.com/"
-# }
-
-# Use default VPC
-data "aws_vpc" "default" {
-  default = true
+# configure security groups and EC2 infrastructure #
+# Using a custom VPC where we attach our infra
+data "aws_vpc" "custom_vpc" {
+  id = var.vpc_id
 }
-
-# Clean up the result 
-# locals {
-#   my_ip = "${chomp(data.http.my_ip.response_body)}/32"
-# }
-
-# Look up the managed prefix list for EC2 Instance Connect in this region
-data "aws_ec2_managed_prefix_list" "ec2_instance_connect" {
-  name = "com.amazonaws.${var.aws_region}.ec2-instance-connect"
-}
-
 
 # Security group for traffic and network access
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-ssh-sg"
   description = "Allow SSH"
-  vpc_id      = data.aws_vpc.default.id
-
-  # allow from local ip (with generated ssh key)
-  # ingress {
-  #   description = "SSH from my IP"
-  #   from_port   = 22
-  #   to_port     = 22
-  #   protocol    = "tcp"
-  #   cidr_blocks = [local.my_ip]
-  # }
-
-  # Allow SSH from the EC2 Instance Connect service (console/web terminal)
-  ingress {
-    description      = "EC2 Instance Connect service"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    prefix_list_ids  = [data.aws_ec2_managed_prefix_list.ec2_instance_connect.id]
-  }
+  vpc_id      = data.aws_vpc.custom_vpc.id
 
   # Allow all traffic between instances in this SG
   ingress {
-    description      = "Allow all traffic between ECS instances"
+    description      = "Allow all traffic between EC2 instances"
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
-    cidr_blocks = [data.aws_vpc.default.cidr_block] # open to all in VPC
+    cidr_blocks = [data.aws_vpc.custom_vpc.cidr_block] # open to all in VPC
   }
 
   egress {
@@ -93,7 +47,49 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# 4. Create IAM role/policy/instance_profile to allow EC2 instances to communicate with ECS resources
+# Create a dedicated security group for EC2 Instance Connect Endpoints (EICE)
+# Allows ssh connection to private subnets on VPC
+# This SG is attached to all endpoints and controls outbound traffic from the endpoints
+# Currently allows all outbound traffic so endpoints can initiate SSH tunnels to instances
+resource "aws_security_group" "eic_endpoint_sg" {
+  name   = "eic-endpoint-sg"
+  vpc_id = data.aws_vpc.custom_vpc.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "eic-endpoint-sg" }
+}
+
+# Create an EC2 Instance Connect Endpoint for each private subnet
+# Uses for_each on var.private_subnet_ids to deploy one endpoint per subnet/AZ
+# Each endpoint is attached to the dedicated EICE SG defined above
+resource "aws_ec2_instance_connect_endpoint" "main" {
+  for_each          = toset(var.private_subnet_ids)
+  subnet_id         = each.value
+  security_group_ids = [aws_security_group.eic_endpoint_sg.id]
+
+  tags = { Name = "eic-endpoint-${each.value}" }
+}
+
+# Allow EC2 instances to receive SSH connections from EICE endpoints
+# This rule enables port 22 inbound from the EICE endpoint SG to the ECS SG
+# Ensures only EICE endpoints can SSH into EC2 instances, not the open internet
+resource "aws_security_group_rule" "allow_ssh_from_eic" {
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_sg.id
+  source_security_group_id = aws_security_group.eic_endpoint_sg.id
+}
+
+
+# Create IAM role/policy/instance_profile to allow EC2 instances to communicate with ECS resources
 # IAM Role, attach policy, instance profiles for EC2 instances
 resource "aws_iam_role" "ecs_instance_role" {
   name = "ecsInstanceRole"
@@ -115,18 +111,12 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
 
-# Add EC2 Instance Connect permissions
-resource "aws_iam_role_policy_attachment" "ecs_instance_role_ec2_instance_connect" {
-  role       = aws_iam_role.ecs_instance_role.name
-  policy_arn = "arn:aws:iam::aws:policy/EC2InstanceConnect"
-}
-
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
   name = "ecsInstanceProfile"
   role = aws_iam_role.ecs_instance_role.name
 }
 
-# 5. Create launch template.
+# Create launch template.
 # Data source to fetch the latest ECS-optimized Amazon Linux 2 AMI
 # Fetch the latest Amazon Linux 2023 ECS-Optimized AMI (general-purpose, non-GPU)
 data "aws_ssm_parameter" "ecs_al2023_ami" {
@@ -161,9 +151,6 @@ resource "aws_launch_template" "ecs_lt" {
               # Update packages
               sudo dnf update -y
 
-              # Install EC2 Instance Connect
-              sudo dnf install -y ec2-instance-connect
-
               # mount extra ebs volume to the directory where docker creates volumes
               sudo mkfs -t xfs /dev/sdf
               sudo mount /dev/sdf /var/lib/docker/volumes
@@ -180,22 +167,13 @@ resource "aws_launch_template" "ecs_lt" {
   )
 }
 
-# 6. Configure subnets and create autoscaling group.
-# Get all subnets in the default VPC
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
-
 # Auto Scaling Group
 resource "aws_autoscaling_group" "ecs_asg" {
   name                      = "ecs-asg"
   max_size                  = var.ec2_instance_max
   min_size                  = var.ec2_instance_min
   desired_capacity          = var.ec2_instance_min
-  vpc_zone_identifier       = data.aws_subnets.default.ids # replace with your subnet(s)
+  vpc_zone_identifier       = var.private_subnet_ids # Replace with your subnet(s)
   health_check_type         = "EC2"
 
   # Enable new instances to have scale-in protection
@@ -212,7 +190,7 @@ resource "aws_autoscaling_group" "ecs_asg" {
   }
 }
 
-# 7. Create ECS capacity providers and link to auto scaling group. 
+# ECS capacity providers and link to auto scaling group. 
 # Capacity Provider
 resource "aws_ecs_capacity_provider" "ecs_cp" {
   name = "kafka-setup-capacity-provider"
@@ -242,10 +220,10 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_cluster_cp" {
   }
 }
 
-# 8. Create a service discovery private dns namespace
-# Use so services can create a resolvable dns on within the VPC
+# Create a service discovery private dns namespace
+# Used so services can create a resolvable dns on within the VPC
 resource "aws_service_discovery_private_dns_namespace" "ecs_private_dns_ns" {
   name        = "ecs.local"
   description = "Private namespace for ECS cluster"
-  vpc         = data.aws_vpc.default.id
+  vpc         = data.aws_vpc.custom_vpc.id
 }

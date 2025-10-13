@@ -1,16 +1,23 @@
 # Infrastructure Design
 Terraform/terragrunt is used to provision AWS resources. Services used include but are not limited to: ECS, ECR, EC2, S3, RDS
 
-The main purpose here is to set up a small-scale, production, ready kafka cluster. Features: multi-node kafka setup, Kafka-connect, cluster monitoring with kafbat, automatic container image deployment to ECR.
+The main purpose here is to set up a small-scale, production, ready kafka cluster. Single region, multiple availability zone application. Features: multi-node kafka setup, Kafka-connect, cluster monitoring with kafbat, automatic container image deployment to ECR.
 
 # Modules
 ### ecr
 Provisions an ECR repository to store container images.
+
+### vpc
+Sets up a custom vpc for our resources. Support for multiple az exists, if more than one az is defined, a public and private subnet is created for each on.
+* Services should be attached to the private subnet(s).
+* The private subnet(s) are linked to NAT gateway(s) which allows private subnet outbound traffic. An internet gateway is created which allows for the public subnet to access traffic to and from the internet, NAT(s) will filter traffic so that only inbound traffic, connections to private instances, are blocked.
+* EC2 instances attached to the VPC and on private subnets can access the internet without exposing themselves. 
+
 ### ecs
 Provisions an ECS cluster to run containers. Utilizes EC2 infrastructure. 
 * Creates a launch template for EC2 infra. Maps EBS volumes to docker volumes locations for persistence, as well as other EC2 start up tasks.
 * Configures autoscaling group and capacity providers.
-* Enables EC2 instance connect for web-SSH access to machines.
+* Enables EC2 instance connect endpoint for web-SSH access to EC2 on private subnets.
 * Most of our networking is set up here to allow traffic in/out of EC2 instances. 
 * Also sets up a private dns namespace so our services can create a resolvable dns within the VPC.
 

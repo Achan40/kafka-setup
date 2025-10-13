@@ -8,9 +8,14 @@ variable "ecs_cluster_name" {
   description = "Name of ecs cluster"
 }
 
-variable "aws_region" {
+variable "vpc_id" {
   type = string
-  description = "Name of instance region"
+  description = "id of a custom vpc"
+}
+
+variable "private_subnet_ids" {
+  type = list(string)
+  description = "list of private subnets ids"
 }
 
 variable "ec2_instance_min" {
