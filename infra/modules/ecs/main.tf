@@ -88,7 +88,6 @@ resource "aws_security_group_rule" "allow_ssh_from_eic" {
   source_security_group_id = aws_security_group.eic_endpoint_sg.id
 }
 
-
 # Create IAM role/policy/instance_profile to allow EC2 instances to communicate with ECS resources
 # IAM Role, attach policy, instance profiles for EC2 instances
 resource "aws_iam_role" "ecs_instance_role" {
@@ -114,6 +113,52 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_attach" {
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
   name = "ecsInstanceProfile"
   role = aws_iam_role.ecs_instance_role.name
+}
+
+# EC2 Instance Connect Endpoint Policy
+resource "aws_iam_policy" "ecs_instance_connect_policy" {
+  name        = "ecsInstanceConnectEndpointPolicy"
+  description = "Restrict EC2 Instance Connect tunneling to specific IPs, port, and duration"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowEICTunnel",
+        Effect = "Allow",
+        Action = [
+          "ec2-instance-connect:OpenTunnel",
+          "ec2-instance-connect:SendSSHPublicKey"
+        ],
+        Resource = "*",
+        Condition = {
+          "StringEquals" = {
+            "ec2-instance-connect:remotePort" = 22
+          },
+          "IpAddress" = {
+            "ec2-instance-connect:privateIpAddress" = data.aws_vpc.custom_vpc.cidr_block
+          },
+          "NumericLessThanEquals" = {
+            "ec2-instance-connect:maxTunnelDuration" = 3600
+          }
+        }
+      },
+      {
+        Sid    = "AllowDescribeForEIC",
+        Effect = "Allow",
+        Action = [
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceConnectEndpoints"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_instance_connect_attach" {
+  role       = aws_iam_role.ecs_instance_role.name
+  policy_arn = aws_iam_policy.ecs_instance_connect_policy.arn
 }
 
 # Create launch template.
@@ -150,6 +195,9 @@ resource "aws_launch_template" "ecs_lt" {
 
               # Update packages
               sudo dnf update -y
+
+              # Install EC2 Instance Connect
+              sudo dnf install -y ec2-instance-connect
 
               # mount extra ebs volume to the directory where docker creates volumes
               sudo mkfs -t xfs /dev/sdf
