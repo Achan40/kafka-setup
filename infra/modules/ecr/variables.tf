@@ -5,5 +5,5 @@ variable "project_tag" {
 
 variable "ecr_repo_name" {
   type = string
-  description = "Name of ecr repo"
+  description = "Name of ECR repository"
 }

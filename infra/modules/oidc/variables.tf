@@ -1,4 +1,4 @@
 variable "github_repo" {
   type = string
-  description = "Github Repository"
+  description = "Github Repository name"
 }

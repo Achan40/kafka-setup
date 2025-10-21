@@ -1,9 +1,42 @@
-# Infrastructure Design
-Terraform/terragrunt is used to provision AWS resources. Services used include but are not limited to: ECS, ECR, EC2, S3, RDS
+# Overview
+Terraform/terragrunt is used to provision AWS resources.
 
-The main purpose here is to set up a small-scale, production, ready kafka cluster. Single region, multiple availability zone application. Features: multi-node kafka setup, Kafka-connect, cluster monitoring with kafbat, automatic container image deployment to ECR.
+The main purpose here is to set up a small-scale, production ready kafka cluster on a single region with multiple availability zones. Additional features include kafka-connect and kafbat for cluster monitoring. 
 
-# Modules
+## Modules
+For module documentation, README.md files are available within each sub-directory of the parent `infra/modules`. 
+
+For module usage examples, see each sub-directory of the parent `infra/live`.
+
+## Environments
+Infrastructure is set up to have multiple "environments" on a single AWS account. You generally want separate AWS accounts for each environments in production, however, I'm working off AWS free tier and may have to restart after credits run out. This was the simplest approach to separate environments and following standard SDLC procedures.
+
+* IMPORTANT: The remote backend s3 bucket that is created on the first `terragrunt apply` is not tracked in the terragrunt state. Will have to manually teardown if wiping infrastructure completely.
+* IMPORTANT: OIDC Provider and associated role/policies needed for github actions CI/CD requires one time provisioning. The directory `infra/live/bootstrap` contains the setup.
+
+## Quick Notes
+* Terragrunt commands:
+    * `terragrunt hcl fmt` format terragrunt files to be more readable
+    * `terragrunt plan --all` validate resource declaration
+    * `terragrunt apply --all` provision all resources listed in a certain directory. Used when organized in modules.
+    * `terragrunt destroy --all` teardown resources
+
+* Docker commands:
+    * `docker ps` list running containers
+    * `docker exec -it <container_id> /bin/bash` enter container
+
+* Kafka commands:
+    * `/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka1.ecs.local:9092` 
+    * `/opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka1.ecs.local:9092 --topic test-topic`
+    * `/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1.ecs.local:9092 --list`
+    * `/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka1.ecs.local:9092 --topic test-topic --from-beginning`
+    * `/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka1.ecs.local:9092 --describe --all-groups`
+
+
+
+
+
+
 ### ecr
 Provisions an ECR repository to store container images.
 
@@ -41,20 +74,3 @@ Infrastructure is set up to have multiple "environments" on a single AWS account
 
 
 
-# Quick Notes
-* Terragrunt commands:
-    * `terragrunt hcl fmt` format terragrunt files to be more readable
-    * `terragrunt plan --all` validate resource declaration
-    * `terragrunt apply --all` provision all resources listed in a certain directory. Used when organized in modules.
-    * `terragrunt destroy --all` teardown resources
-
-* Docker commands:
-    * `docker ps` list running containers
-    * `docker exec -it <container_id> /bin/bash` enter container
-
-* Kafka commands:
-    * `/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka1.ecs.local:9092` 
-    * `/opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka1.ecs.local:9092 --topic test-topic`
-    * `/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1.ecs.local:9092 --list`
-    * `/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka1.ecs.local:9092 --topic test-topic --from-beginning`
-    * `/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka1.ecs.local:9092 --describe --all-groups`

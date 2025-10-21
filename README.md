@@ -2,7 +2,7 @@
 Infrastructure setup for a multi-node Kafka system utilizing various AWS services. Services include but are not limited to: ECS, ECR, EC2, EBS, VPC. 
 
 ## Usage
-Terragrunt/terraform is used to provision AWS services.
+Terragrunt/terraform is used to provision AWS services. 
 1. Follow the first few steps of the [terraform setup](https://spacelift.io/blog/terraform-tutorial) docs to install and allow terraform to access AWS
 2. Install [terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/quick-start)
 3. From project root, navigate to directory for the desired environment, example: `cd infa/live/dev`
