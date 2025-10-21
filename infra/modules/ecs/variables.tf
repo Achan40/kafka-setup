@@ -1,16 +1,16 @@
 variable "project_tag" {
   type = string
-  description = "Project tag"
+  description = "Specify a tag for the group of services"
 }
 
 variable "ecs_cluster_name" {
   type = string
-  description = "Name of ECS cluster"
+  description = "Name of the ECS cluster to create"
 }
 
 variable "vpc_id" {
   type = string
-  description = "id of some VPC"
+  description = "id of some existing VPC to launch the ECS cluster within"
 }
 
 variable "private_subnet_ids" {

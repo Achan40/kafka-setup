@@ -9,7 +9,6 @@ terraform {
   }
 }
 
-# Create an ECS cluster
 resource "aws_ecs_cluster" "kafka_setup_cluster" {
   name = var.ecs_cluster_name
   tags = {
@@ -17,19 +16,19 @@ resource "aws_ecs_cluster" "kafka_setup_cluster" {
   }
 }
 
-# configure security groups and EC2 infrastructure #
-# Using a custom VPC where we attach our infra
+### Configure security groups and EC2 infrastructure ###
+# Use an existing VPC
 data "aws_vpc" "custom_vpc" {
   id = var.vpc_id
 }
 
-# Security group for traffic and network access
+# Security group for traffic and network access for EC2 instances within our VPC
+# TOO PERMISSIVE? MAY NEED TO FIX
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-ssh-sg"
   description = "Allow SSH"
   vpc_id      = data.aws_vpc.custom_vpc.id
 
-  # Allow all traffic between instances in this SG
   ingress {
     description      = "Allow all traffic between EC2 instances"
     from_port        = 0
@@ -45,47 +44,6 @@ resource "aws_security_group" "ecs_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-# Create a dedicated security group for EC2 Instance Connect Endpoints (EICE)
-# Allows ssh connection to private subnets on VPC
-# This SG is attached to all endpoints and controls outbound traffic from the endpoints
-# Currently allows all outbound traffic so endpoints can initiate SSH tunnels to instances
-resource "aws_security_group" "eic_endpoint_sg" {
-  name   = "eic-endpoint-sg"
-  vpc_id = data.aws_vpc.custom_vpc.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "eic-endpoint-sg" }
-}
-
-# Create an EC2 Instance Connect Endpoint for each private subnet
-# Uses for_each on var.private_subnet_ids to deploy one endpoint per subnet/AZ
-# Each endpoint is attached to the dedicated EICE SG defined above
-resource "aws_ec2_instance_connect_endpoint" "main" {
-  for_each          = toset(var.private_subnet_ids)
-  subnet_id         = each.value
-  security_group_ids = [aws_security_group.eic_endpoint_sg.id]
-
-  tags = { Name = "eic-endpoint-${each.value}" }
-}
-
-# Allow EC2 instances to receive SSH connections from EICE endpoints
-# This rule enables port 22 inbound from the EICE endpoint SG to the ECS SG
-# Ensures only EICE endpoints can SSH into EC2 instances, not the open internet
-resource "aws_security_group_rule" "allow_ssh_from_eic" {
-  type                     = "ingress"
-  from_port                = 22
-  to_port                  = 22
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.ecs_sg.id
-  source_security_group_id = aws_security_group.eic_endpoint_sg.id
 }
 
 # Create IAM role/policy/instance_profile to allow EC2 instances to communicate with ECS resources
@@ -115,7 +73,45 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
   role = aws_iam_role.ecs_instance_role.name
 }
 
-# EC2 Instance Connect Endpoint Policy
+### EC2 Instance Connect Endpoint Setup ###
+# We want to allow ssh connection to private subnets on VPC
+# This SG is attached to endpoints and controls outbound traffic from the endpoints
+# This sg allows all outbound traffic so endpoints can initiate SSH tunnels to instances
+resource "aws_security_group" "eic_endpoint_sg" {
+  name   = "eic-endpoint-sg"
+  vpc_id = data.aws_vpc.custom_vpc.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "eic-endpoint-sg" }
+}
+
+# One EC2 Instance Connect Endpoint for each private subnet is best practice for high availability
+resource "aws_ec2_instance_connect_endpoint" "main" {
+  for_each          = toset(var.private_subnet_ids)
+  subnet_id         = each.value
+  security_group_ids = [aws_security_group.eic_endpoint_sg.id]
+
+  tags = { Name = "eic-endpoint-${each.value}" }
+}
+
+# Allow EC2 instances to receive SSH connections from EICE endpoints
+# This rule enables port 22 inbound from the EICE endpoint SG to the ECS SG
+# Ensures only EICE endpoints can SSH into EC2 instances, not the open internet
+resource "aws_security_group_rule" "allow_ssh_from_eic" {
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_sg.id
+  source_security_group_id = aws_security_group.eic_endpoint_sg.id
+}
+
 resource "aws_iam_policy" "ecs_instance_connect_policy" {
   name        = "ecsInstanceConnectEndpointPolicy"
   description = "Restrict EC2 Instance Connect tunneling to specific IPs, port, and duration"
@@ -156,27 +152,29 @@ resource "aws_iam_policy" "ecs_instance_connect_policy" {
   })
 }
 
+# Attach the instance connect policy to the role used for the EC2 instances
 resource "aws_iam_role_policy_attachment" "ecs_instance_connect_attach" {
   role       = aws_iam_role.ecs_instance_role.name
   policy_arn = aws_iam_policy.ecs_instance_connect_policy.arn
 }
 
-# Create launch template.
-# Data source to fetch the latest ECS-optimized Amazon Linux 2 AMI
+# Create launch template so that EC2 machines can be created in the same way each time without manual intervention
 # Fetch the latest Amazon Linux 2023 ECS-Optimized AMI (general-purpose, non-GPU)
 data "aws_ssm_parameter" "ecs_al2023_ami" {
   name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id"
 }
 
-# Launch Template for ECS Instances
 resource "aws_launch_template" "ecs_lt" {
   name_prefix   = "ecs-lt-"
-  image_id      = data.aws_ssm_parameter.ecs_al2023_ami.value # ECS-Optimized AL2023 AMI
+  image_id      = data.aws_ssm_parameter.ecs_al2023_ami.value
   instance_type = var.ec2_instance_type
   key_name      = "ecs-key"  # replace with your key pair
   vpc_security_group_ids = [aws_security_group.ecs_sg.id]
 
-  # extra EBS volume
+  # Create an extra EBS volume for storing kafka log data
+  # The volume is mounted to the EC2 instance at boot and to the location used for docker volumes
+  # For our kafka cluster, we rely on node for data integrity and availability
+  # Shared storage options would introduce too much latency, the EBS approach gives us some additional safety compared to general storage volumes which are temporary
   block_device_mappings {
     device_name = "/dev/sdf"
     ebs {
@@ -189,6 +187,7 @@ resource "aws_launch_template" "ecs_lt" {
     name = aws_iam_instance_profile.ecs_instance_profile.name
   }
 
+  # ECS optimized instances need ec2-instance-connect for EICE endpoint to work correctly
   user_data = base64encode(<<-EOT
               #!/bin/bash
               echo ECS_CLUSTER=${var.ecs_cluster_name} >> /etc/ecs/ecs.config
@@ -215,7 +214,6 @@ resource "aws_launch_template" "ecs_lt" {
   )
 }
 
-# Auto Scaling Group
 resource "aws_autoscaling_group" "ecs_asg" {
   name                      = "ecs-asg"
   max_size                  = var.ec2_instance_max
@@ -238,8 +236,6 @@ resource "aws_autoscaling_group" "ecs_asg" {
   }
 }
 
-# ECS capacity providers and link to auto scaling group. 
-# Capacity Provider
 resource "aws_ecs_capacity_provider" "ecs_cp" {
   name = "kafka-setup-capacity-provider"
 
@@ -256,7 +252,7 @@ resource "aws_ecs_capacity_provider" "ecs_cp" {
   }
 }
 
-# Link Capacity Provider to ECS Cluster
+# Link Capacity Provider to ECS Cluster so that if we need more compute the cluster can automatically create the EC2 instances needed
 resource "aws_ecs_cluster_capacity_providers" "ecs_cluster_cp" {
   cluster_name       = var.ecs_cluster_name
   capacity_providers = [aws_ecs_capacity_provider.ecs_cp.name]
@@ -268,8 +264,8 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_cluster_cp" {
   }
 }
 
-# Create a service discovery private dns namespace
-# Used so services can create a resolvable dns on within the VPC
+# Create a service discovery private dns namespace so services can create a resolvable dns on within the VPC
+# Example: use ecs.local.kafka1 to reach a node instead of a static ip like 192.0.0.1:9092
 resource "aws_service_discovery_private_dns_namespace" "ecs_private_dns_ns" {
   name        = "ecs.local"
   description = "Private namespace for ECS cluster"

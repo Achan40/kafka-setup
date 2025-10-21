@@ -1,9 +1,9 @@
 variable "project_tag" {
   type = string
-  description = "Project tag"
+  description = "Specify a tag for the service"
 }
 
 variable "ecr_repo_name" {
   type = string
-  description = "Name of ECR repository"
+  description = "Desired name of ECR repository"
 }

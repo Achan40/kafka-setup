@@ -29,6 +29,6 @@ output "ecs_private_dns_ns_name" {
 }
 
 output "ecs_capacity_provider_name" {
-  description = "Capacity provider name"
+  description = "Capacity provider name, that is linked to an autoscaling group"
   value = aws_ecs_capacity_provider.ecs_cp.name
 }
