@@ -13,7 +13,6 @@ provider "aws" {
   region = var.region
 }
 
-# VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -21,13 +20,16 @@ resource "aws_vpc" "main" {
   tags = { Name = var.name }
 }
 
-# Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags   = { Name = "${var.name}-igw" }
 }
 
-# Subnets
+# Sets up a multi-AZ VPC with:
+# Public subnets - can access the internet directly (via IGW).
+# Private subnets -  can access the internet via NAT Gateways (not directly exposed to public).
+# High availability - subnets are distributed across AZs.
+# Secure routing - private instances can access the internet without being publicly exposed.
 resource "aws_subnet" "public" {
   for_each = {
     for idx, az in var.availability_zones :

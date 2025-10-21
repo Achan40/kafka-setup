@@ -1,6 +1,6 @@
 variable "name" {
   type        = string
-  description = "Base name for resources"
+  description = "Name for resources"
 }
 
 variable "region" {
