@@ -15,6 +15,7 @@ inputs = {
   project_tag       = "kafka-setup-dev"
   vpc_id = dependency.vpc.outputs.vpc_id
   private_subnet_ids = dependency.vpc.outputs.private_subnet_ids
+  client_cidr_block = dependency.vpc.outputs.client_cidr_block
   ec2_instance_min  = 2
   ec2_instance_max  = 2
   ec2_instance_type = "c7i-flex.large"

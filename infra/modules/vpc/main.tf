@@ -114,3 +114,43 @@ resource "aws_route_table_association" "private_assoc" {
   subnet_id      = each.value.id
   route_table_id = aws_route_table.private[each.key].id
 }
+
+resource "aws_ec2_client_vpn_endpoint" "cert" {
+  description            = "${var.name}-client-vpn"
+  server_certificate_arn = var.server_cert_arn
+  client_cidr_block      = var.client_cidr_block
+  vpc_id                 = aws_vpc.main.id
+  split_tunnel           = true
+  transport_protocol     = "udp"
+
+  authentication_options {
+    type                       = "certificate-authentication"
+    root_certificate_chain_arn = var.server_cert_arn # can use the same cert as server when creating endpoint
+  }
+
+  connection_log_options {
+    enabled = false
+  }
+
+  dns_servers = [cidrhost(var.vpc_cidr, 2),"1.1.1.1","8.8.8.8"]  # dynamic AmazonProvidedDNS, cloudflare, google
+  #dns_servers = [cidrhost(var.vpc_cidr, 2)]  # dynamic AmazonProvidedDNS, cloudflare, google
+
+  tags = {
+    Name = "${var.name}-client-vpn"
+  }
+}
+
+resource "aws_ec2_client_vpn_network_association" "private" {
+  for_each               = aws_subnet.private
+  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cert.id
+  subnet_id              = each.value.id
+}
+
+resource "aws_ec2_client_vpn_authorization_rule" "allow_all" {
+  for_each = aws_subnet.private
+
+  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cert.id
+  target_network_cidr    = each.value.cidr_block
+  authorize_all_groups   = true
+  description            = "Allow VPN clients access to ${each.key}"
+}

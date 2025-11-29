@@ -29,6 +29,7 @@ resource "aws_security_group" "ecs_sg" {
   description = "Allow SSH"
   vpc_id      = data.aws_vpc.custom_vpc.id
 
+  # Allow traffic between EC2 instances on the same VPC
   ingress {
     description      = "Allow all traffic between EC2 instances"
     from_port        = 0
@@ -37,6 +38,32 @@ resource "aws_security_group" "ecs_sg" {
     cidr_blocks = [data.aws_vpc.custom_vpc.cidr_block] # open to all in VPC
   }
 
+  # Allow web traffic (HTTP/HTTPS) from VPN clients
+  ingress {
+    description = "Allow HTTPS from VPN CIDR"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.client_cidr_block]
+  }
+
+  ingress {
+    description = "Allow HTTP from VPN CIDR"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.client_cidr_block]
+  }
+
+  ingress {
+    description = "Allow DNS resolution from client VPN connections"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.client_cidr_block]
+  }
+
+  # allow all outbound traffic (default behavior)
   egress {
     description = "Allow all outbound"
     from_port   = 0
@@ -102,7 +129,7 @@ resource "aws_ec2_instance_connect_endpoint" "main" {
 
 # Allow EC2 instances to receive SSH connections from EICE endpoints
 # This rule enables port 22 inbound from the EICE endpoint SG to the ECS SG
-# Ensures only EICE endpoints can SSH into EC2 instances, not the open internet
+# Ensures only EICE endpoints can SSH into EC2 instances, not the open internet or even those connected to client VPN
 resource "aws_security_group_rule" "allow_ssh_from_eic" {
   type                     = "ingress"
   from_port                = 22
@@ -267,7 +294,7 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_cluster_cp" {
 # Create a service discovery private dns namespace so services can create a resolvable dns on within the VPC
 # Example: use ecs.local.kafka1 to reach a node instead of a static ip like 192.0.0.1:9092
 resource "aws_service_discovery_private_dns_namespace" "ecs_private_dns_ns" {
-  name        = "ecs.local"
+  name        = "kcluster.aaron"
   description = "Private namespace for ECS cluster"
   vpc         = data.aws_vpc.custom_vpc.id
 }

@@ -32,3 +32,8 @@ variable "ec2_instance_type" {
   type = string
   description = "Type of EC2 instance"
 }
+
+variable "client_cidr_block" {
+  type = string
+  description = "CIDR block for client VPN connection"
+}

@@ -222,3 +222,4 @@ crash.log
 # Sensitive variable files
 *.tfvars
 *.pem
+*.ovpn

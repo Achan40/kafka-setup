@@ -19,6 +19,47 @@ Sets up a custom vpc for our resources. Support for multiple az exists, if more 
 * The private subnet(s) are linked to NAT gateway(s) which allows private subnet outbound traffic. An internet gateway is created which allows for the public subnet to access traffic to and from the internet, NAT(s) will filter traffic so that only inbound traffic, connections to private instances, are blocked.
 * EC2 instances attached to the VPC and on private subnets can access the internet without exposing themselves. 
 
+Since our core services are on private subnets, if we want to acces them we need to establish a VPN connection to our VPC.
+1. Generate Certificates Locally
+```
+# Clone AWS example certs repo
+git clone https://github.com/OpenVPN/easy-rsa.git
+cd easy-rsa/easyrsa3
+
+# Initialize PKI
+./easyrsa init-pki
+
+# Build CA (you’ll be prompted for a common name)
+./easyrsa build-ca nopass
+
+# Build server cert
+./easyrsa --san=DNS:kafka build-server-full server nopass
+
+# Build one client cert
+./easyrsa --san=DNS:kafka build-client-full client1 nopass
+```
+2. Import Certificates into AWS ACM
+```
+# Server cert (for the VPN endpoint)
+aws acm import-certificate \
+  --certificate fileb://pki/issued/server.crt \
+  --private-key fileb://pki/private/server.key \
+  --certificate-chain fileb://pki/ca.crt
+
+# Client cert
+aws acm import-certificate \
+  --certificate fileb://pki/issued/client1.crt \
+  --private-key fileb://pki/private/client1.key \
+  --certificate-chain fileb://pki/ca.crt
+```
+3. Export and connect (after VPC resource created)
+```
+aws ec2 export-client-vpn-client-configuration \
+  --client-vpn-endpoint-id <endpoint-id> \
+  --output text > client.ovpn
+```
+4. Open VPN client, import `client.ovpn`, replace the cert placeholders in the file with your local cert paths (client1.crt, client1.key, ca.crt) and connect through your vpn client.
+
 ### ecs
 Provisions an ECS cluster to run containers. Utilizes EC2 infrastructure. 
 * Creates a launch template for EC2 infra. Maps EBS volumes to docker volumes locations for persistence, as well as other EC2 start up tasks.
