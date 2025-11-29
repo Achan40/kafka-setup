@@ -9,8 +9,7 @@ terraform {
   }
 }
 
-####### OIDC Provider, role, and policy for github actions ##########
-# set up oidc provider
+## Set up an oidc provider, role and policy so that github actions can execute workflows
 resource "aws_iam_openid_connect_provider" "github_oidc" {
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]

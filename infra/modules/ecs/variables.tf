@@ -1,29 +1,39 @@
 variable "project_tag" {
   type = string
-  description = "Project tag"
+  description = "Specify a tag for the group of services"
 }
 
 variable "ecs_cluster_name" {
   type = string
-  description = "Name of ecs cluster"
+  description = "Name of the ECS cluster to create"
 }
 
-variable "aws_region" {
+variable "vpc_id" {
   type = string
-  description = "Name of instance region"
+  description = "id of some existing VPC to launch the ECS cluster within"
+}
+
+variable "private_subnet_ids" {
+  type = list(string)
+  description = "List of private subnets ids within the VPC"
 }
 
 variable "ec2_instance_min" {
   type = number
-  description = "Num of instances minimum"
+  description = "Minimum number of EC2 instances"
 }
 
 variable "ec2_instance_max" {
   type = number
-  description = "Num of instances maximum"
+  description = "Maximum number of EC2 instances"
 }
 
 variable "ec2_instance_type" {
   type = string
-  description = "type of EC2 instance"
+  description = "Type of EC2 instance"
+}
+
+variable "client_cidr_block" {
+  type = string
+  description = "CIDR block for client VPN connection"
 }

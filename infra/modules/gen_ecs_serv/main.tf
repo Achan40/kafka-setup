@@ -9,7 +9,7 @@ terraform {
   }
 }
 
-# ECS Task Definition
+# ECS Task Definition and Service
 # Used to run generic standalone containers (for example: a python script that prints hello world)
 resource "aws_ecs_task_definition" "task" {
   family                   = var.family
@@ -32,7 +32,6 @@ resource "aws_ecs_task_definition" "task" {
   ])
 }
 
-# ECS Service
 resource "aws_ecs_service" "service" {
   name            = var.service_name
   cluster         = var.cluster_arn

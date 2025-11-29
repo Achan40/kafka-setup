@@ -1,11 +1,11 @@
 output "ecs_cluster_arn" {
-  description = "ARN of the ECS kafka-setup-cluster"
+  description = "ARN of the ECS cluster"
   value       = aws_ecs_cluster.kafka_setup_cluster.arn
 }
 
 output "ecs_cluster_subnet_ids" {
   description = "Subnet ids for ECS cluster"
-  value =  data.aws_subnets.default.ids
+  value =  var.private_subnet_ids
 }
 
 output "ecs_cluster_sg" {
@@ -15,7 +15,7 @@ output "ecs_cluster_sg" {
 
 output "ecs_cluster_vpc_id" {
   description = "VPC id used for ECS cluster"
-  value = data.aws_vpc.default.id
+  value = data.aws_vpc.custom_vpc.id
 }
 
 output "ecs_private_dns_ns" {
@@ -29,6 +29,6 @@ output "ecs_private_dns_ns_name" {
 }
 
 output "ecs_capacity_provider_name" {
-  description = "Capacity provider name"
+  description = "Capacity provider name, that is linked to an autoscaling group"
   value = aws_ecs_capacity_provider.ecs_cp.name
 }

@@ -9,13 +9,12 @@ terraform {
   }
 }
 
-# configure cloudwatch logs
 resource "aws_cloudwatch_log_group" "kafka" {
   name              = "/ecs/${var.container_name}"
   retention_in_days = 3
 }
 
-# service discovery name. Needs a private dns namespace (created in ecs module)
+# service discovery name so that kafka can be reached without a static ip. Requires an existing private dns namespace.
 resource "aws_service_discovery_service" "broker" {
   name = var.container_name
   dns_config {
@@ -30,7 +29,9 @@ resource "aws_service_discovery_service" "broker" {
     }
 }
 
-
+# This follows the standard multi-node setup for kafka in kraft mode
+# Simply add a new terragrunt.hcl file for each new node you want to add to your cluster
+# You will have to make sure configs are appropriately defined however
 resource "aws_ecs_task_definition" "task" {
 
   family                   = "kafka-container"
@@ -39,7 +40,6 @@ resource "aws_ecs_task_definition" "task" {
   cpu                      = "512"        
   memory                   = "1024"   
 
-  # Define a volume
   volume {
     name = "${var.container_name}"
     
@@ -78,7 +78,9 @@ resource "aws_ecs_task_definition" "task" {
         { name = "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", value = var.kafka_offsets_topic_replication_factor } 
       ]
 
-      # connect volume on EC2 to container internal volume. Persist data on EC2 instance even if container is destroyed
+      # connect volume on EC2 to container internal volume. Persist data on EC2 instance even if container is destroyed.
+      # Note: data only persists because we have mounted an EBS volume to the docker volume location of the EC2 instance.
+      # This set up works if even for multiple nodes on the same EC2 machine because we use the name of the container as a volume
       mountPoints = [
         {
           sourceVolume  = "${var.container_name}"
@@ -99,7 +101,6 @@ resource "aws_ecs_task_definition" "task" {
   ])
 }
 
-# ECS Service
 resource "aws_ecs_service" "service" {
   name            = var.service_name
   cluster         = var.cluster_arn

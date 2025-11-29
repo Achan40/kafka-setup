@@ -41,7 +41,7 @@ variable "aws_region" {
 variable "desired_count" {
   type        = number
   default     = 1
-  description = "The number of ECS tasks that should be running for the service."
+  description = "The number of ECS tasks that should be running for the service. For kafka nodes, one task per service is optimal. May run into issue if more than one task is created for each service."
 }
 
 variable "kafka_node_id" {
@@ -90,12 +90,12 @@ variable "kafka_controller_listener_names" {
 }
 
 variable "kafka_offsets_topic_replication_factor" {
-  description = "Kafka offsets topic replication factor"
+  description = "Kafka offsets topic replication factor. Set equal to the number of nodes you are running, otherwise reading from topics will fail."
   type        = string
-  default     = "1" # set to 1 for single node, otherwise equal to number of Kafka nodes
+  default     = "1" 
 }
 
 variable "ecs_capacity_provider_name" {
-  description = "capacity provider name. link to service so that it can scale up"
+  description = "capacity provider name. Link to service so that it can scale up as needed."
   type = string
 }
